@@ -1,0 +1,117 @@
+{
+
+	"symbolsMap": {
+		{
+            "index": 0,
+			"symbol_code": "70",
+			"background_color": "#FAE7B5",
+			"count": 50
+
+		},
+		{
+            "index": 1,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 100
+
+		},
+		{
+            "index": 2,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 130
+
+		},
+		{
+            "index": 3,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 30
+
+		},
+		{
+            "index": 4,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 220
+
+		},
+		{
+            "index": 5,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 170
+
+		},
+		{
+            "index": 6,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 40
+
+		},
+		{
+            "index": 7,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 60
+
+		},
+		{
+            "index": 8,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 10
+
+		},
+		{
+            "index": 9,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 170
+
+		},
+		{
+            "index": 10,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 100
+
+		},
+		{
+            "index": 11,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 120
+
+		},
+		{
+            "index": 12,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 70
+
+		},
+		{
+            "index": 13,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 80
+
+		},
+		{
+            "index": 14,
+			"symbol_code": "70",
+			"background_color": "#FFFFFF",
+			"count": 150
+
+		}
+
+	}
+
+	"matrix": [
+				[1, 1, 1, 0, ...... 5],
+			 	......................
+			 	[2, 0, 0, 2, 8, 8, 12]
+	]
+}
