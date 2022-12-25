@@ -1,0 +1,11 @@
+version: '3'
+services:
+  flask:
+    build: .
+    container_name: backend-flask
+    environment:
+      - PYTHONUNBUFFERED=True
+    restart: on-failure
+    ports:
+      - 5000:5000
+    command: python image_controller.py

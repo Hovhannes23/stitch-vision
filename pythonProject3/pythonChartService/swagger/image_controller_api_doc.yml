@@ -1,0 +1,39 @@
+summary: "Upload image"
+description: "This is an API to upload an image and get clusterized matrix"
+consumes:
+- "multipart/form-data"
+produces:
+- "application/json"
+parameters:
+- in: "query"
+  name: "clusters"
+  type: "string"
+  required: "true"
+  description: "Count of unique symbols"
+- in: "query"
+  name: "rows"
+  type: "string"
+  required: "true"
+  description: "Count of rows on scheme"
+- in: "query"
+  name: "columns"
+  type: "string"
+  required: "true"
+  description: "Count of columns on scheme"
+- in: "body"
+  name: "image"
+  description: "Accepts an image, symbols on which will be clusterized"
+  required: "true"
+  type: "string"
+  format: "binary"
+
+responses:
+  400:
+    description: "Same response is for 202, 400, 403"
+    schema:
+      type: "object"
+      properties:
+        status:
+          type: "string"
+        message:
+          type: "string"
