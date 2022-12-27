@@ -9,12 +9,12 @@ import preprocess
 from utils import *
 
 
-def get_cells_from_image(img, clusters_num, rows_num, columns_num):
+def detect_cells_and_clusterize(img, clusters_num, rows_num, columns_num):
     clusters_num = int(clusters_num)
     rows_num = int(rows_num)
     columns_num = int(columns_num)
-    cells = detect_split_into_cells(img, rows_num, columns_num)
-    labels, label_image_map = cluster_cells(cells, clusters_num)
+    cells = detect_and_get_cells(img, rows_num, columns_num)
+    labels, symbols_list = cluster_cells(cells, clusters_num)
 
     # раскидываем по папкам в зависимости от label, чтобы нагляднее было
     # for idx, cluster in enumerate(labels):
@@ -30,7 +30,7 @@ def get_cells_from_image(img, clusters_num, rows_num, columns_num):
     #     img_no_bckg = encode_base64(img_no_bckg)
     #     bckg_color = encode_base64(bckg_color)
     #     label_image_map[label] = (img_no_bckg, bckg_color)
-    return labels, label_image_map
+    return labels, symbols_list
 
 
 def response_adapter(old_response, rows_num, columns_num):
@@ -64,47 +64,52 @@ def encode_base64(input):
 
 
 def detect_split_into_cells(img, rows_num, columns_num):
-    global imgWarpColored
+    corner_pts = detect_corner_points(img)
+    img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
+    cells = split_into_cells(img, rows_num, columns_num)
+    return cells
+
+def detect_and_get_cells_for_sup(img, corner_pts, rows_num, columns_num, cluster_num):
+    img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
+    cells = split_into_cells(img, rows_num, columns_num)
+    labels, symbols_list = cluster_cells(cells, cluster_num)
+
+    return labels, symbols_list
+def detect_corner_points(img):
+    imgBigContour = img.copy()
     # showImage(img)
     imgThresholdBinInvOtsu = preProcess(img)
     # showImage(imgThreshold)
 
     # Find contours
     imgContours = img.copy()
-    imgBigContour = img.copy()
-    # contours, hierarchy = cv2.findContours(imgThreshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours, hierarchy = cv2.findContours(imgThresholdBinInvOtsu, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cv2.drawContours(imgContours, contours, -1, (0, 255, 0), 3)
+    cv2.drawContours(imgContours, contours, -1, (255, 0, 0), 10)
 
     showImage(imgContours)
-    imageList = ([img, imgThresholdBinInvOtsu, imgContours])
-
     # Biggest contour
     biggest, maxArea = findBiggestContour(contours)
     if biggest.size != 0:
         biggest = reorder(biggest)
         cv2.drawContours(imgBigContour, biggest, -1, (0, 255, 0), 10)
         showImage(imgBigContour)
-        rectangle_pts = get_rectangle_points(biggest)
-        w = rectangle_pts[3, 0]
-        h = rectangle_pts[3, 1]
+    return biggest
 
-        w = change_num(w, columns_num)
-        h = change_num(h, rows_num)
-        pts1 = np.float32(biggest)
-        pts2 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-        matrix = cv2.getPerspectiveTransform(pts1, pts2)
-        imgWarpColored = cv2.warpPerspective(img, matrix, (w, h))
-        cv2.imwrite('imgWarpColored.png', imgWarpColored)
+def remove_perspective_distortion(img, corner_pts, rows, columns):
+    # detect rectangle for perspective distortion
+    rectangle_pts = get_rectangle_points(corner_pts)
+    w = rectangle_pts[3, 0]
+    h = rectangle_pts[3, 1]
 
-        showImage(imgWarpColored)
+    w = change_num(w, columns)
+    h = change_num(h, rows)
+    pts1 = np.float32(corner_pts)
+    pts2 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+    matrix = cv2.getPerspectiveTransform(pts1, pts2)
+    img = cv2.warpPerspective(img, matrix, (w, h))
+    showImage(img)
 
-    # Splitting
-    # img2 = img.copy()
-
-    cells = split_into_cells(imgWarpColored, rows_num, columns_num)
-    return cells
-
+    return img
 
 def cluster_cells(cells, cluster_count):
     cluster_count = int(cluster_count)
@@ -142,7 +147,7 @@ def cluster_cells(cells, cluster_count):
 
     labels, new_label_blank = change_labels(labels_all, labels_without_blank, label_of_blank)
 
-    symbols_map = []
+    symbols_list = []
     symbol_data0 = {}
     label_count = Counter(labels)
 
@@ -150,44 +155,44 @@ def cluster_cells(cells, cluster_count):
     symbol_data0["symbolCode"] = ""
     symbol_data0["backgroundColor"] = "#FFFFFF"
     symbol_data0["count"] = label_count[-1]
-    symbols_map.append(symbol_data0)
+    symbols_list.append(symbol_data0)
 
     symbol_data1 = {}
     symbol_data1["index"] = int(label_elka)
     symbol_data1["symbolCode"] = "aa"
     symbol_data1["backgroundColor"] = detach_background(cells_without_blank[-5])[1]
     symbol_data1["count"] = label_count[label_elka]
-    symbols_map.append(symbol_data1)
+    symbols_list.append(symbol_data1)
 
     symbol_data2 = {}
     symbol_data2["index"] = int(label_flower)
     symbol_data2["symbolCode"] = "cd"
     symbol_data2["backgroundColor"] = detach_background(cells_without_blank[-4])[1]
     symbol_data2["count"] = label_count[label_flower]
-    symbols_map.append(symbol_data2)
+    symbols_list.append(symbol_data2)
 
     symbol_data3 = {}
     symbol_data3["index"] = int(label_kolos)
     symbol_data3["symbolCode"] = "41"
     symbol_data3["backgroundColor"] = detach_background(cells_without_blank[-3])[1]
     symbol_data3["count"] = label_count[label_kolos]
-    symbols_map.append(symbol_data3)
+    symbols_list.append(symbol_data3)
 
     symbol_data4 = {}
     symbol_data4["index"] = int(label_square)
     symbol_data4["symbolCode"] = "44"
     symbol_data4["backgroundColor"] = detach_background(cells_without_blank[-2])[1]
     symbol_data4["count"] = label_count[label_square]
-    symbols_map.append(symbol_data4)
+    symbols_list.append(symbol_data4)
 
     symbol_data5 = {}
     symbol_data5["index"] = int(label_sun)
     symbol_data5["symbolCode"] = "51"
     symbol_data5["backgroundColor"] = detach_background(cells_without_blank[-1])[1]
     symbol_data5["count"] = label_count[label_sun]
-    symbols_map.append(symbol_data5)
+    symbols_list.append(symbol_data5)
 
-    return labels, symbols_map
+    return labels, symbols_list
     # конец временного кода
 
     # labels = cl.results_unique['labels']

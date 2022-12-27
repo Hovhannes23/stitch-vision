@@ -51,7 +51,7 @@ def upload_image():
 
         image = numpy.array(image)
         # utils.showImage(image)
-        labels, label_image_map = engine.get_cells_from_image(image, clusters_num, rows_num, columns_num)
+        labels, label_image_map = engine.detect_cells_and_clusterize(image, clusters_num, rows_num, columns_num)
         response = {}
         labels = labels.reshape(rows_num, columns_num)
         # labels_base64 = engine.encode_base64(labels)
