@@ -2,18 +2,19 @@ import base64
 import os
 from collections import Counter
 
+import cv2
 from clustimage import Clustimage
+from matplotlib import pyplot as plt
 from sklearn.cluster import MiniBatchKMeans
-
-import preprocess
-from utils import *
-
+import numpy as np
+import pythonProject3.utils.preprocess as preprocess
+import pythonProject3.utils.utils as utils
 
 def detect_cells_and_clusterize(img, clusters_num, rows_num, columns_num):
     clusters_num = int(clusters_num)
     rows_num = int(rows_num)
     columns_num = int(columns_num)
-    cells = detect_and_get_cells(img, rows_num, columns_num)
+    cells = detect_split_into_cells(img, rows_num, columns_num)
     labels, symbols_list = cluster_cells(cells, clusters_num)
 
     # раскидываем по папкам в зависимости от label, чтобы нагляднее было
@@ -66,19 +67,19 @@ def encode_base64(input):
 def detect_split_into_cells(img, rows_num, columns_num):
     corner_pts = detect_corner_points(img)
     img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
-    cells = split_into_cells(img, rows_num, columns_num)
+    cells = utils.split_into_cells(img, rows_num, columns_num)
     return cells
 
 def detect_and_get_cells_for_sup(img, corner_pts, rows_num, columns_num, cluster_num):
     img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
-    cells = split_into_cells(img, rows_num, columns_num)
+    cells = utils.split_into_cells(img, rows_num, columns_num)
     labels, symbols_list = cluster_cells(cells, cluster_num)
 
     return labels, symbols_list
 def detect_corner_points(img):
     imgBigContour = img.copy()
     # showImage(img)
-    imgThresholdBinInvOtsu = preProcess(img)
+    imgThresholdBinInvOtsu = utils.preProcess(img)
     # showImage(imgThreshold)
 
     # Find contours
@@ -86,28 +87,28 @@ def detect_corner_points(img):
     contours, hierarchy = cv2.findContours(imgThresholdBinInvOtsu, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(imgContours, contours, -1, (255, 0, 0), 10)
 
-    showImage(imgContours)
+    utils.showImage(imgContours)
     # Biggest contour
-    biggest, maxArea = findBiggestContour(contours)
+    biggest, maxArea = utils.findBiggestContour(contours)
     if biggest.size != 0:
-        biggest = reorder(biggest)
-        cv2.drawContours(imgBigContour, biggest, -1, (0, 255, 0), 10)
-        showImage(imgBigContour)
+        biggest = utils.reorder(biggest)
+        cv2.drawContours(imgBigContour, biggest, -1, (255, 0, 0), 10)
+        utils.showImage(imgBigContour)
     return biggest
 
 def remove_perspective_distortion(img, corner_pts, rows, columns):
     # detect rectangle for perspective distortion
-    rectangle_pts = get_rectangle_points(corner_pts)
+    rectangle_pts = utils.get_rectangle_points(corner_pts)
     w = rectangle_pts[3, 0]
     h = rectangle_pts[3, 1]
 
-    w = change_num(w, columns)
-    h = change_num(h, rows)
+    w = utils.change_num(w, columns)
+    h = utils.change_num(h, rows)
     pts1 = np.float32(corner_pts)
     pts2 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)
     img = cv2.warpPerspective(img, matrix, (w, h))
-    showImage(img)
+    utils.showImage(img)
 
     return img
 
@@ -117,12 +118,17 @@ def cluster_cells(cells, cluster_count):
     # временный код для добавления помеченных изображений
     cells = upload_images_to_cells(cells, for_blank=True)
     result, cl = clusterize_images(cells, 2)
+    # result, cl = clusterize_images(cells, cluster_count)
+
     labels_all = result["labels"]
+    save_images(cells, labels_all, 'with_blank')
+
     # последним у нас был помеченный пустой символ, находим его label
     label_of_blank = labels_all[-1]
 
     # удаляем последний label, так как он помеченный
     labels_all = labels_all[:-1]
+    cells = cells[:-1]
 
     # отделяем изображения, на которых есть символы (которые не blank)
     cells_without_blank = []
@@ -136,6 +142,9 @@ def cluster_cells(cells, cluster_count):
     result, cl = clusterize_images(cells_without_blank, cluster_count - 1)
 
     labels_without_blank = result["labels"]
+    save_images(cells_without_blank, labels_without_blank, 'no_blank')
+
+
     label_elka = labels_without_blank[-5]
     label_flower = labels_without_blank[-4]
     label_kolos = labels_without_blank[-3]
@@ -192,36 +201,31 @@ def cluster_cells(cells, cluster_count):
     symbol_data5["count"] = label_count[label_sun]
     symbols_list.append(symbol_data5)
 
-    return labels, symbols_list
+    # return labels, symbols_list
     # конец временного кода
 
-    # labels = cl.results_unique['labels']
-    # idxs = cl.results_unique['idx']
-    # label_image_map = {}
-    # for i, label in enumerate(labels):
-    #     print(cells[i])
-    #     label = int(label)
-    #     label_image_map[label] = cells[idxs[i]]
-    #
-    # # return result['labels'], label_image_map
-    # for idx, cluster in enumerate(result["labels"]):
-    #     dir_name = 'Clustered Images 60 epoch compose update/' + str(cluster)
-    #     if not os.path.exists(dir_name):
-    #         os.makedirs(dir_name)
-    #     cv2.imwrite(dir_name + '/' + str(idx) + '.png', cells[idx])
-    #
+    # save_images(cells, labels_all)
+
     # cl.scatter(zoom=4)
     # cl.dendogram()
     # cl.pca.plot()
     # cl.pca.scatter(legend=False, label=False)
     # cl.clusteval.plot()
+    return labels, symbols_list
 
+
+def save_images(cells, labels, dir_name):
+    for idx, cluster in enumerate(labels):
+        folder_name = dir_name + '/' + str(cluster)
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+        cv2.imwrite(folder_name + '/' + str(idx) + '.png', cells[idx])
 
 # временный метод для добавления помеченных изображений к изображениям ячеек
 # for_blank = True, если добавляем к cells изображение пустой ячейки (blank.jpg)
 # for_blank = False, если добавляем изображения непустых ячеек
 def upload_images_to_cells(cells, for_blank):
-    folder = "chashka_symbols"
+    folder = "../resources/chashkaSymbols"
     images = []
     filenames = os.listdir(folder)
 
@@ -272,11 +276,16 @@ def clusterize_images(images, cluster_count):
     cl = Clustimage(method='pca', params_pca={'n_components': cluster_count * 4}, dim=(128, 128))
     # cl = Clustimage(method='hog', params_hog={'orientations': 8, 'pixels_per_cell': (8, 8), 'cells_per_block': (1, 1)}, dim=(128, 128))
     result = cl.fit_transform(sobel_images, min_clust=cluster_count, max_clust=cluster_count + 1)
+    # cl.scatter(zoom=4)
+    # cl.dendogram()
+    # cl.pca.plot()
+    # cl.pca.scatter(legend=False, label=False)
+    # cl.clusteval.plot()
     return result, cl
 
 
 def detach_background(image):
-    showImage(image)
+    utils.showImage(image)
     (h, w) = image.shape[:2]
     # convert the image from the RGB color space to the L*a*b*
     # color space -- since we will be clustering using k-means

@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 # from flasgger import Swagger, swag_from
+import io
 import json
+
 import PIL
 import numpy
-from flask import Flask, request, jsonify
 from PIL import Image
-import io
-import engine
-import utils
+from flask import Flask, request, jsonify
 from pillow_heif import register_heif_opener
+
+import pythonProject3.utils.engine as engine
 
 app = Flask(__name__)
 # swagger = Swagger(app)
