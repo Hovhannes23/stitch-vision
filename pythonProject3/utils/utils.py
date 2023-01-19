@@ -7,7 +7,7 @@ def preProcess(img):
     imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     imgBlur = cv2.GaussianBlur(imgGray, (5, 5), 1)
     # imgThreshold = cv2.adaptiveThreshold(imgBlur, 255, cv2.THRESH_BINARY_INV, 1, 11, 2)
-    ret, imgThresholdBinInvOtsu = cv2.threshold(imgBlur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    ret, imgThresholdBinInvOtsu = cv2.threshold(imgBlur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     # showImage(imgThreshold)
     showImage(imgThresholdBinInvOtsu)
     return imgThresholdBinInvOtsu

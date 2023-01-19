@@ -67,6 +67,10 @@ def encode_base64(input):
 def detect_split_into_cells(img, rows_num, columns_num):
     corner_pts = detect_corner_points(img)
     img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
+    img = 255 - img
+    corner_pts = detect_corner_points(img)
+    img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
+    img = 255 - img
     cells = utils.split_into_cells(img, rows_num, columns_num)
     return cells
 
