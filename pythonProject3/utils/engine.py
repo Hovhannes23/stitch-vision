@@ -106,8 +106,11 @@ def remove_perspective_distortion(img, corner_pts, rows, columns):
     w = rectangle_pts[3, 0]
     h = rectangle_pts[3, 1]
 
-    w = utils.change_num(w, columns)
-    h = utils.change_num(h, rows)
+    if rows or columns !=0:
+        w = utils.change_num(w, columns)
+        h = utils.change_num(h, rows)
+    w = int(w)
+    h = int(h)
     pts1 = np.float32(corner_pts)
     pts2 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)

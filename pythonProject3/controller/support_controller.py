@@ -1,4 +1,7 @@
+import io
+
 import PIL
+import numpy as np
 from flask import Flask, request, jsonify
 from PIL import Image
 from io import BytesIO
@@ -7,6 +10,7 @@ from minio.error import InvalidResponseError
 # import sys
 # sys.path.append('/pythonChartService')
 import pythonProject3.utils.engine as engine
+import os
 from minio import Minio
 
 app = Flask(__name__)
@@ -19,26 +23,43 @@ register_heif_opener()
 # @swag_from("swagger/image_controller_api_doc.yml")
 def get_stitch_border():
 
+    object_name = request.json['imageId']
     bucket_name = 'task-images'
-    object_name = '0263ce2b-03fb-4847-a47c-6a50d670253'
     minioClient = Minio(endpoint="192.168.1.181:9000", access_key= 'stitch', secret_key='stitch2023', secure=False)
 
     try:
         response = minioClient.get_object(bucket_name, object_name)
-        image = Image.open(BytesIO(bytes(response.data)))
+        image = Image.open(BytesIO(response.data))
     except InvalidResponseError as err:
         print("error", err)
     else:
         response.close()
         response.release_conn()
 
-    if image.format.lower() in ALLOWED_EXTENSIONS:
-        success = True
-    else:
+    if image.format.lower() not in ALLOWED_EXTENSIONS:
         resp = jsonify({'message': 'File type is not allowed'})
         resp.status_code = 400
-    corner_pts = engine.detect_corner_points(image)
 
+    image = np.asarray(image)
+
+    # определяем границы листа А4
+    corner_pts_A4 = engine.detect_corner_points(image)
+    # избавляемся от перспективного искажения на А4
+    A4_no_distortion = engine.remove_perspective_distortion(image, corner_pts_A4, 0, 0)
+    # сохраняем А4 в Minio
+    A4_no_distortion = Image.fromarray(A4_no_distortion)
+    bucket = 'recognized-corner'
+    bucket_exists = minioClient.bucket_exists(bucket)
+    if not bucket_exists:
+        minioClient.make_bucket(bucket)
+
+    b = BytesIO()
+    A4_no_distortion.save(b, 'png')
+    minioClient.put_object(bucket, object_name, io.BytesIO(b.getvalue()), b.getbuffer().nbytes, content_type='image/png')
+
+
+
+    corner_pts = ''
     return corner_pts
 
 @app.route('/support/image/clusterize', methods=['POST'])

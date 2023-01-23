@@ -57,7 +57,7 @@ def change_num(num, divisor):
     num = int(num)
     divisor = int(divisor)
     whole_part = num // divisor
-    num = int(whole_part * divisor)
+    # num = int(whole_part * divisor)
     return num
 
 
