@@ -98,6 +98,7 @@ def detect_corner_points(img):
         biggest = utils.reorder(biggest)
         cv2.drawContours(imgBigContour, biggest, -1, (255, 0, 0), 10)
         utils.showImage(imgBigContour)
+
     return biggest
 
 def remove_perspective_distortion(img, corner_pts, rows, columns):
@@ -339,3 +340,20 @@ def detach_background(image):
 def RGB_to_HEX(rgb):
     rgb = (rgb[0], rgb[1], rgb[2])
     return '#' + '%02x%02x%02x' % rgb
+
+def order_points(pts):
+    pts = pts.reshape(4, 2)
+    rect = np.zeros((4, 2), dtype="int32")
+    # the top-left point will have the smallest sum, whereas
+    # the bottom-right point will have the largest sum
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    # now, compute the difference between the points, the
+    # top-right point will have the smallest difference,
+    # whereas the bottom-left will have the largest difference
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+    # return the ordered coordinates
+    return rect

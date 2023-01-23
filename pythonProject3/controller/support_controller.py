@@ -1,17 +1,13 @@
 import io
-
+import json
 import PIL
-import numpy as np
-from flask import Flask, request, jsonify
 from PIL import Image
-from io import BytesIO
-from pillow_heif import register_heif_opener
-from minio.error import InvalidResponseError
-# import sys
-# sys.path.append('/pythonChartService')
-import pythonProject3.utils.engine as engine
-import os
+from flask import Flask, request, jsonify
 from minio import Minio
+from pillow_heif import register_heif_opener
+
+import pythonProject3.service.support_service as support_service
+import pythonProject3.utils.engine as engine
 
 app = Flask(__name__)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'heif'}
@@ -24,43 +20,38 @@ register_heif_opener()
 def get_stitch_border():
 
     object_name = request.json['imageId']
-    bucket_name = 'task-images'
+    bucket_to_get = 'task-images'
     minioClient = Minio(endpoint="192.168.1.181:9000", access_key= 'stitch', secret_key='stitch2023', secure=False)
 
-    try:
-        response = minioClient.get_object(bucket_name, object_name)
-        image = Image.open(BytesIO(response.data))
-    except InvalidResponseError as err:
-        print("error", err)
-    else:
-        response.close()
-        response.release_conn()
-
-    if image.format.lower() not in ALLOWED_EXTENSIONS:
-        resp = jsonify({'message': 'File type is not allowed'})
-        resp.status_code = 400
-
-    image = np.asarray(image)
-
+    # получаем изображение из Minio
+    image = support_service.get_object_from_minio(object_name, bucket_to_get, minioClient)
     # определяем границы листа А4
     corner_pts_A4 = engine.detect_corner_points(image)
     # избавляемся от перспективного искажения на А4
     A4_no_distortion = engine.remove_perspective_distortion(image, corner_pts_A4, 0, 0)
-    # сохраняем А4 в Minio
+    # сохраняем изображение в Minio
+    bucket_to_put = 'recognized-corner'
     A4_no_distortion = Image.fromarray(A4_no_distortion)
-    bucket = 'recognized-corner'
-    bucket_exists = minioClient.bucket_exists(bucket)
-    if not bucket_exists:
-        minioClient.make_bucket(bucket)
+    object_name = support_service.put_object_to_minio(A4_no_distortion, object_name, bucket_to_put, minioClient, 'image/png')
 
-    b = BytesIO()
-    A4_no_distortion.save(b, 'png')
-    minioClient.put_object(bucket, object_name, io.BytesIO(b.getvalue()), b.getbuffer().nbytes, content_type='image/png')
+    corner_pts_A4 = support_service.order_points(corner_pts_A4)
+    response = {
+        "id": object_name,
+        "corners": {
+            "leftTopCorner": corner_pts_A4[0].tolist(),
+            "rightTopCorner": corner_pts_A4[1].tolist(),
+            "rightDownCorner": corner_pts_A4[2].tolist(),
+            "leftDownCorner": corner_pts_A4[3].tolist()
+        }
+    }
 
+    resp = app.response_class(
+        response=json.dumps(response),
+        status=200,
+        mimetype="application/json"
+    )
 
-
-    corner_pts = ''
-    return corner_pts
+    return resp
 
 @app.route('/support/image/clusterize', methods=['POST'])
 # @swag_from("swagger/image_controller_api_doc.yml")
