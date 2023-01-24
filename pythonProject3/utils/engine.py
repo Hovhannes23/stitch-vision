@@ -98,6 +98,7 @@ def detect_corner_points(img):
         biggest = utils.reorder(biggest)
         cv2.drawContours(imgBigContour, biggest, -1, (255, 0, 0), 10)
         utils.showImage(imgBigContour)
+
     return biggest
 
 def remove_perspective_distortion(img, corner_pts, rows, columns):
@@ -106,8 +107,11 @@ def remove_perspective_distortion(img, corner_pts, rows, columns):
     w = rectangle_pts[3, 0]
     h = rectangle_pts[3, 1]
 
-    w = utils.change_num(w, columns)
-    h = utils.change_num(h, rows)
+    if rows or columns !=0:
+        w = utils.change_num(w, columns)
+        h = utils.change_num(h, rows)
+    w = int(w)
+    h = int(h)
     pts1 = np.float32(corner_pts)
     pts2 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)
@@ -336,3 +340,21 @@ def detach_background(image):
 def RGB_to_HEX(rgb):
     rgb = (rgb[0], rgb[1], rgb[2])
     return '#' + '%02x%02x%02x' % rgb
+
+def order_points(pts):
+    pts = pts.reshape(4, 2)
+    rect = np.zeros((4, 2), dtype="int32")
+    # у верхней левой точки будет наименьшая сумма
+    # у нижней правой точки будет наибольшая сумма
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+
+    # высчитываем y-х для каждой точки.
+    # у верхней правой точки результат будет наименьшим
+    # у нижней левой точки результат будет наибольшим
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+
+    return rect
