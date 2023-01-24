@@ -4,7 +4,7 @@ services:
     build: pythonChartService
     container_name: backend-flask
     environment:
-      - PYTHONUNBUFFERED=True
+      - PYTHON UNBUFFERED=True
     restart: on-failure
     ports:
       - 5000:5000

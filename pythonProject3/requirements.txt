@@ -8,3 +8,4 @@ scikit-learn==1.2.0
 torchvision==0.8.2
 matplotlib==3.3.3
 torch==1.7.1
+minio==7.1.13
