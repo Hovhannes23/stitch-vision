@@ -91,13 +91,13 @@ def detect_corner_points(img):
     contours, hierarchy = cv2.findContours(imgThresholdBinInvOtsu, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(imgContours, contours, -1, (255, 0, 0), 10)
 
-    utils.showImage(imgContours)
+    # utils.showImage(imgContours)
     # Biggest contour
     biggest, maxArea = utils.findBiggestContour(contours)
     if biggest.size != 0:
         biggest = utils.reorder(biggest)
         cv2.drawContours(imgBigContour, biggest, -1, (255, 0, 0), 10)
-        utils.showImage(imgBigContour)
+        # utils.showImage(imgBigContour)
 
     return biggest
 
@@ -116,7 +116,7 @@ def remove_perspective_distortion(img, corner_pts, rows, columns):
     pts2 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)
     img = cv2.warpPerspective(img, matrix, (w, h))
-    utils.showImage(img)
+    # utils.showImage(img)
 
     return img
 
@@ -293,7 +293,7 @@ def clusterize_images(images, cluster_count):
 
 
 def detach_background(image):
-    utils.showImage(image)
+    # utils.showImage(image)
     (h, w) = image.shape[:2]
     # convert the image from the RGB color space to the L*a*b*
     # color space -- since we will be clustering using k-means

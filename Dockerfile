@@ -7,6 +7,6 @@ RUN pip3 install -r pythonProject3/requirements.txt
 RUN apt-get install ffmpeg libsm6 libxext6  -y
 COPY . /app
 EXPOSE 5000
-#CMD ["python", "./support_controller.py"]
+#CMD ["python", "pythonProject3/controller/main_controller.py"]
 CMD [ "flask", "--app" , "pythonProject3.controller.main_controller.py", "run"]
 

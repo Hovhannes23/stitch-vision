@@ -12,8 +12,6 @@ import PIL
 from PIL import Image
 from flask import Flask, request, jsonify
 from minio import Minio
-import pythonProject3.service.support_service as support_service
-import pythonProject3.utils.engine as engine
 import pythonProject3.controller.image_controller as image_controller
 import pythonProject3.controller.support_controller as support_controller
 
