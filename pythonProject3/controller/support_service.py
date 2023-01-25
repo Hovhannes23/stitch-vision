@@ -4,7 +4,7 @@ from PIL import Image
 from flask import jsonify
 from minio.error import InvalidResponseError
 from pillow_heif import register_heif_opener
-import pythonProject3.utils.engine as engine
+import engine
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'heif'}
 # для работы с heif форматом

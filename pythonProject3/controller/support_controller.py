@@ -1,13 +1,10 @@
-import os
 from dotenv import load_dotenv
 import io
 import json
 import PIL
 from PIL import Image
 from flask import Flask, request, jsonify
-from minio import Minio
-import pythonProject3.service.support_service as support_service
-import pythonProject3.utils.engine as engine
+import support_service
 
 app = Flask(__name__)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'heif'}
@@ -31,7 +28,7 @@ def get_stitch_border(object_name, bucket_to_get, minioClient):
 
     return response
 
-@app.route('/support/image/clusterize', methods=['POST'])
+# @app.route('/support/image/clusterize', methods=['POST'])
 # @swag_from("swagger/image_controller_api_doc.yml")
 def clusterize_cells():
     image_bytes = request.get_data()

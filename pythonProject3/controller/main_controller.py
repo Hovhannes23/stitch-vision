@@ -12,8 +12,11 @@ import PIL
 from PIL import Image
 from flask import Flask, request, jsonify
 from minio import Minio
-import pythonProject3.controller.image_controller as image_controller
-import pythonProject3.controller.support_controller as support_controller
+import image_controller
+import support_controller
+
+# import pythonProject3.controller.image_controller as image_controller
+# import pythonProject3.controller.support_controller as support_controller
 
 app = Flask(__name__)
 # swagger = Swagger(app)

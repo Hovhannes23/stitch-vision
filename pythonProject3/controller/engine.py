@@ -3,12 +3,13 @@ import os
 from collections import Counter
 
 import cv2
+import numpy as np
 from clustimage import Clustimage
 from matplotlib import pyplot as plt
 from sklearn.cluster import MiniBatchKMeans
-import numpy as np
-import pythonProject3.utils.preprocess as preprocess
-import pythonProject3.utils.utils as utils
+import preprocess
+import util
+
 
 def detect_cells_and_clusterize(img, clusters_num, rows_num, columns_num):
     clusters_num = int(clusters_num)
@@ -71,19 +72,19 @@ def detect_split_into_cells(img, rows_num, columns_num):
     corner_pts = detect_corner_points(img)
     img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
     img = 255 - img
-    cells = utils.split_into_cells(img, rows_num, columns_num)
+    cells =  util.split_into_cells(img, rows_num, columns_num)
     return cells
 
 def detect_and_get_cells_for_sup(img, corner_pts, rows_num, columns_num, cluster_num):
     img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
-    cells = utils.split_into_cells(img, rows_num, columns_num)
+    cells =  util.split_into_cells(img, rows_num, columns_num)
     labels, symbols_list = cluster_cells(cells, cluster_num)
 
     return labels, symbols_list
 def detect_corner_points(img):
     imgBigContour = img.copy()
     # showImage(img)
-    imgThresholdBinInvOtsu = utils.preProcess(img)
+    imgThresholdBinInvOtsu = util.preProcess(img)
     # showImage(imgThreshold)
 
     # Find contours
@@ -93,9 +94,9 @@ def detect_corner_points(img):
 
     # utils.showImage(imgContours)
     # Biggest contour
-    biggest, maxArea = utils.findBiggestContour(contours)
+    biggest, maxArea = util.findBiggestContour(contours)
     if biggest.size != 0:
-        biggest = utils.reorder(biggest)
+        biggest = util.reorder(biggest)
         cv2.drawContours(imgBigContour, biggest, -1, (255, 0, 0), 10)
         # utils.showImage(imgBigContour)
 
@@ -103,13 +104,13 @@ def detect_corner_points(img):
 
 def remove_perspective_distortion(img, corner_pts, rows, columns):
     # detect rectangle for perspective distortion
-    rectangle_pts = utils.get_rectangle_points(corner_pts)
+    rectangle_pts = util.get_rectangle_points(corner_pts)
     w = rectangle_pts[3, 0]
     h = rectangle_pts[3, 1]
 
     if rows or columns !=0:
-        w = utils.change_num(w, columns)
-        h = utils.change_num(h, rows)
+        w = util.change_num(w, columns)
+        h = util.change_num(h, rows)
     w = int(w)
     h = int(h)
     pts1 = np.float32(corner_pts)
@@ -233,7 +234,7 @@ def save_images(cells, labels, dir_name):
 # for_blank = True, если добавляем к cells изображение пустой ячейки (blank.jpg)
 # for_blank = False, если добавляем изображения непустых ячеек
 def upload_images_to_cells(cells, for_blank):
-    folder = "pythonProject3/resources/chashkaSymbols"
+    folder = "./chashkaSymbols"
     images = []
     filenames = os.listdir(folder)
 
