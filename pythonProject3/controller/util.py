@@ -9,7 +9,7 @@ def preProcess(img):
     # imgThreshold = cv2.adaptiveThreshold(imgBlur, 255, cv2.THRESH_BINARY_INV, 1, 11, 2)
     ret, imgThresholdBinInvOtsu = cv2.threshold(imgBlur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     # showImage(imgThreshold)
-    showImage(imgThresholdBinInvOtsu)
+    # showImage(imgThresholdBinInvOtsu)
     return imgThresholdBinInvOtsu
 
 
@@ -57,7 +57,7 @@ def change_num(num, divisor):
     num = int(num)
     divisor = int(divisor)
     whole_part = num // divisor
-    # num = int(whole_part * divisor)
+    num = int(whole_part * divisor)
     return num
 
 

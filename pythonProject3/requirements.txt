@@ -1,10 +1,17 @@
 Flask==2.2.2
-# pillow-heif==0.9.0
+# # pillow-heif==0.9.0
 Pillow==9.3.0
-opencv-python==4.6.0.66
-numpy==1.21.0
+# opencv-python==4.6.0.66
+opencv-python
+# # numpy==1.21.0
+numpy
 Clustimage
 scikit-learn==1.2.0
-torchvision==0.8.2
-matplotlib==3.3.3
-torch==1.7.1
+# # torchvision==0.8.2
+torchvision
+# # matplotlib==3.3.3
+matplotlib
+# # torch==1.7.1
+torch
+minio==7.1.13
+python-dotenv==0.21.1

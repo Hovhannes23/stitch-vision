@@ -1,15 +1,11 @@
 # -*- coding: utf-8 -*-
 # from flasgger import Swagger, swag_from
-import io
 import json
 
-import PIL
 import numpy
-from PIL import Image
-from flask import Flask, request, jsonify
+from flask import Flask
 from pillow_heif import register_heif_opener
-
-import pythonProject3.utils.engine as engine
+import engine
 
 app = Flask(__name__)
 # swagger = Swagger(app)
@@ -22,33 +18,28 @@ def allowed_file(filename):
    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@app.route('/image/upload', methods=['POST'])
+# @app.route('/image/upload', methods=['POST'])
 # @swag_from("swagger/image_controller_api_doc.yml")
-def upload_image():
-    image_bytes = request.get_data()
-    try:
-        image = Image.open(io.BytesIO(image_bytes))
-        # удалить print после тестирования
-        # print("_________________________________")
-        # print("height:" + str(image.height))
-        # print("width:" + str(image.width))
-        # print("_________________________________")
-    except PIL.UnidentifiedImageError as e:
-        resp = jsonify({'message': 'No image in request'})
-        resp.status_code = 400
-        return resp
-
-    if image.format.lower() in ALLOWED_EXTENSIONS:
-        success = True
-    else:
-        resp = jsonify({'message': 'File type is not allowed'})
-        resp.status_code = 400
-        return resp
-
-    if success:
-        clusters_num = request.args.get('clusters')
-        rows_num = int(request.args.get('rows'))
-        columns_num = int(request.args.get('columns'))
+def upload_image(image, clusters_num, rows_num, columns_num):
+    # image_bytes = request.get_data()
+    # try:
+    #     image = Image.open(io.BytesIO(image_bytes))
+    # except PIL.UnidentifiedImageError as e:
+    #     resp = jsonify({'message': 'No image in request'})
+    #     resp.status_code = 400
+    #     return resp
+    #
+    # if image.format.lower() in ALLOWED_EXTENSIONS:
+    #     success = True
+    # else:
+    #     resp = jsonify({'message': 'File type is not allowed'})
+    #     resp.status_code = 400
+    #     return resp
+    #
+    # if success:
+    #     clusters_num = request.args.get('clusters')
+    #     rows_num = int(request.args.get('rows'))
+    #     columns_num = int(request.args.get('columns'))
 
         image = numpy.array(image)
         # utils.showImage(image)
