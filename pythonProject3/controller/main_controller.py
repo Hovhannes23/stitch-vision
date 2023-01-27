@@ -54,7 +54,7 @@ def upload_image():
     return image_controller.upload_image(image, clusters_num, rows_num, columns_num)
 
 
-@app.route('/recognition/border', methods=['GET'])
+@app.route('/recognition/border', methods=['POST'])
 def get_stitch_border():
     object_name = request.json['imageId']
     bucket_to_get = 'task-images'
