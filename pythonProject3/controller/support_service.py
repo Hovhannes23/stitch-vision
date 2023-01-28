@@ -1,4 +1,7 @@
+import shutil
 from io import BytesIO
+from pathlib import Path
+
 import numpy as np
 from PIL import Image
 from flask import jsonify
@@ -80,7 +83,7 @@ def order_points(pts):
     return pts
 
 def split_cells_and_archieve():
-    print("In split_cells method")
+    global image_id
     value_serializer = lambda m: json.dumps(m).encode("utf-8")
     bootstrap_servers = ["0.0.0.0:9092"]
     producer = KafkaProducer(
@@ -90,17 +93,17 @@ def split_cells_and_archieve():
 
     producer.send('topic1', value={
 	"id": "12345",
-	"sizeWidth": 400,
-	"sizeHeight": 600,
-	"symbols": 12,
+	"sizeWidth": 52,
+	"sizeHeight": 58,
+	"symbols": 6,
 	"backStitch": True,
 	"frenchKnot": True,
 	"image": {
-		"imageId": "IMG_9092.HEIC",
-		"leftTopCorner": [0, 0],
-		"rightTopCorner": [0, 100],
-		"rightDownCorner": [100, 100],
-		"leftDownCorner": [100, 0]
+		"imageId": "123456789",
+		"leftTopCorner": [149, 131],
+		"rightTopCorner": [1193, 129],
+		"rightDownCorner": [1189, 1280],
+		"leftDownCorner": [148, 1282]
 	}
      })
 
@@ -136,9 +139,23 @@ def split_cells_and_archieve():
         image = engine.remove_perspective_distortion(image,corner_pts,rows,columns)
         image = 255 - image
         cells = util.split_into_cells(image,rows,columns)
-        labels = engine.cluster_cells(cells, symbols)
+        labels, symbol_list = engine.cluster_cells(cells, symbols)
+        root_path = util.get_project_root()
+        image_directory = str(Path(root_path, "resources", "cell-images", image_id))
+        for idx, cell in  enumerate(cells):
+            label = labels[idx]
+            cell_directory = image_directory + "/" + str(label)
+            if not os.path.exists(cell_directory):
+                os.makedirs(cell_directory)
+            cell_coordinates = util.get_cell_coordinates(idx, columns)
+            filename = str(cell_coordinates[0]) + '_' + str(cell_coordinates[1])
+            engine.save_file(cell, cell_directory, filename)
 
-        # сохранить cells как png с названием row_column и сохранить в папке resources/cells/image_id/label/row_column.png
+        # создать архив и вернуть его, чтобы сохранить в minio
+        shutil.make_archive(image_directory, 'zip', str(Path(root_path, "resources", "cell-images")), image_id)
+        # переделать метод так, чтобы он не только png умел сохранять
+        put_object_to_minio()
+
         # после сохранения всех cells архивировать папку resources/cells/image_id и сохранить в Minio в бакете clusterised-images
 
 

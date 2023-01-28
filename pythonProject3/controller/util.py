@@ -1,3 +1,6 @@
+import shutil
+from pathlib import Path
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -112,3 +115,12 @@ def split_into_cells(img, rows_num, columns_num):
     cells = np.array(cells)
     # cells = np.reshape(cells, (rows_num, columns_num, cells.shape[1], cells.shape[2], cells.shape[3]))
     return cells
+
+# определяем координаты ячейки в таблице в  зависимости от его индекса(idx) в списке и кол-ва cтолбцов(columns_count) в таблице
+def get_cell_coordinates(idx, columns_count):
+    row = idx//columns_count +1
+    column = idx + 1 - idx//columns_count*columns_count
+    return row, column
+
+def get_project_root() -> Path:
+    return Path(__file__).parent.parent
