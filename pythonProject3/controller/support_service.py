@@ -2,10 +2,12 @@ import shutil
 from io import BytesIO
 from pathlib import Path
 
+import kafka
 import numpy as np
 from PIL import Image
 from flask import jsonify
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, KafkaClient
+from kafka.admin import NewTopic
 from minio import Minio
 from minio.error import InvalidResponseError
 from pillow_heif import register_heif_opener
@@ -33,7 +35,9 @@ def get_stitch_corner_pts(object_name, bucket_to_get, minio_client):
     # сохраняем изображение в Minio
     bucket_to_put = "recognized-corner"
     A4_no_distortion = Image.fromarray(A4_no_distortion)
-    object_name = put_object_to_minio(A4_no_distortion, object_name, bucket_to_put, minio_client, 'image/png')
+    bytes = BytesIO()
+    A4_no_distortion.save(bytes, 'png')
+    object_name = put_object_to_minio(bytes, bucket_to_put, object_name, minio_client, 'image/png')
 
     corner_pts_A4 = order_points(corner_pts_A4)
     corner_pts = {
@@ -59,39 +63,60 @@ def get_object_from_minio(object_name, bucket_name, minioClient):
         response.release_conn()
 
     if image.format.lower() not in ALLOWED_EXTENSIONS:
-        resp = jsonify({'message': 'File type is not allowed'})
-        resp.status_code = 400
+        raise ValueError("FIle type %s is not allowed" % image.format.lower())
 
     image = np.asarray(image)
     return image
 
-def put_object_to_minio(object, object_name, bucket_name, minio_client, content_type):
+def put_object_to_minio(object_bytes, bucket_name, object_name,  minio_client, content_type):
 
     bucket_exists = minio_client.bucket_exists(bucket_name)
     if not bucket_exists:
         minio_client.make_bucket(bucket_name)
 
-    # переводим объект в поток bytes, чтобы сохранить в Minio
-    bytes = BytesIO()
-    object.save(bytes, 'png')
-    minio_client.put_object(bucket_name, object_name, BytesIO(bytes.getvalue()), bytes.getbuffer().nbytes, content_type)
+    minio_client.put_object(bucket_name, object_name, BytesIO(object_bytes.getvalue()), object_bytes.getbuffer().nbytes, content_type)
 
     return object_name
+
+def fput_object_to_minio(bucket_name, object_name, object_path, minio_client, content_type):
+    if not minio_client.bucket_exists(bucket_name):
+        minio_client.make_bucket(bucket_name)
+    minio_client.fput_object( bucket_name, object_name, object_path, content_type)
 
 def order_points(pts):
     pts = engine.order_points(pts)
     return pts
 
-def split_cells_and_archieve():
+def split_cells_and_archive():
     global image_id
     value_serializer = lambda m: json.dumps(m).encode("utf-8")
-    bootstrap_servers = ["0.0.0.0:9092"]
+    bootstrap_servers = [os.getenv('KAFKA_ENDPOINT')]
+    # bootstrap_servers = ["localhost:9092"]
     producer = KafkaProducer(
         value_serializer=value_serializer,
-        bootstrap_servers=bootstrap_servers
+        bootstrap_servers=bootstrap_servers,
+        api_version_auto_timeout_ms= 20000,
+        # api_version=(0, 11, 5),
+        security_protocol="SSL",
+        ssl_check_hostname = True,
+        ssl_cafile = "CARoot.pem",
+        ssl_certfile = "certificate.pem",
+        ssl_keyfile="key.pem",
+        ssl_password="changeit"
     )
 
-    producer.send('topic1', value={
+    # admin_kafka_client = kafka.KafkaAdminClient(
+    #     bootstrap_servers=bootstrap_servers,
+    #     client_id='stitch-vision',
+    #     security_protocol="SSL",
+    #     ssl_check_hostname=True,
+    #     ssl_cafile="CAroot.pem",
+    #     # ssl_truststore_location = "pythonProject3/resources/kafka_config/kafka.truststore.pem",
+    #     ssl_keyfile="kafka.keystore.pem",
+    #     ssl_password="changeit"
+    # )
+
+    producer.send('recognition', value={
 	"id": "12345",
 	"sizeWidth": 52,
 	"sizeHeight": 58,
@@ -106,58 +131,102 @@ def split_cells_and_archieve():
 		"leftDownCorner": [148, 1282]
 	}
      })
-
+    producer.flush()
 
     consumer = KafkaConsumer(
-        'topic1',
-        bootstrap_servers=["0.0.0.0:9092"],
+        'recognition',
+        bootstrap_servers=bootstrap_servers,
         auto_offset_reset="latest",
-        enable_auto_commit=True,
-        group_id="consumer_group_id",
+        enable_auto_commit=False,
+        group_id="stitch_vision_group_id",
+        security_protocol="SSL",
+        ssl_check_hostname = True,
+        ssl_cafile = "CARoot.pem",
+        ssl_certfile = "certificate.pem",
+        ssl_keyfile="key.pem",
+        ssl_password="changeit"
     )
     for message in consumer:
-        message = json.loads(message.value.decode('utf8'))
-        image_data = message["image"]
-        image_id = image_data["imageId"]
-        leftTopCorner = image_data["leftTopCorner"]
-        rightTopCorner = image_data["rightTopCorner"]
-        rightDownCorner = image_data["rightDownCorner"]
-        leftDownCorner = image_data["leftDownCorner"]
-        rows = message["sizeHeight"]
-        columns = message["sizeWidth"]
-        symbols = message['symbols']
+        try:
+            # парсим message
+            message = json.loads(message.value.decode('utf8'))
 
-        minioClient = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key=os.getenv('MINIO_ACCESS_KEY'),
-                            secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
+            task_id = message["id"]
+            image_data = message["image"]
+            image_id = image_data["imageId"]
+            leftTopCorner = image_data["leftTopCorner"]
+            rightTopCorner = image_data["rightTopCorner"]
+            rightDownCorner = image_data["rightDownCorner"]
+            leftDownCorner = image_data["leftDownCorner"]
+            rows = message["sizeHeight"]
+            columns = message["sizeWidth"]
+            symbols = message['symbols']
 
-        image = get_object_from_minio(image_id, "recognized-corner", minioClient)
-        corner_pts = np.array([[[leftTopCorner[0], leftTopCorner[1]]],
-                               [[rightTopCorner[0], rightTopCorner[1]]],
-                               [[rightDownCorner[0], rightDownCorner[1]]],
-                               [[leftDownCorner[0], leftDownCorner[1]]]
-                               ])
-        image = engine.remove_perspective_distortion(image,corner_pts,rows,columns)
-        image = 255 - image
-        cells = util.split_into_cells(image,rows,columns)
-        labels, symbol_list = engine.cluster_cells(cells, symbols)
-        root_path = util.get_project_root()
-        image_directory = str(Path(root_path, "resources", "cell-images", image_id))
-        for idx, cell in  enumerate(cells):
-            label = labels[idx]
-            cell_directory = image_directory + "/" + str(label)
-            if not os.path.exists(cell_directory):
-                os.makedirs(cell_directory)
-            cell_coordinates = util.get_cell_coordinates(idx, columns)
-            filename = str(cell_coordinates[0]) + '_' + str(cell_coordinates[1])
-            engine.save_file(cell, cell_directory, filename)
+            # достаем изображение из Minio
+            minio_client = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key=os.getenv('MINIO_ACCESS_KEY'),
+                                secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
 
-        # создать архив и вернуть его, чтобы сохранить в minio
-        shutil.make_archive(image_directory, 'zip', str(Path(root_path, "resources", "cell-images")), image_id)
-        # переделать метод так, чтобы он не только png умел сохранять
-        put_object_to_minio()
+            image = get_object_from_minio(image_id, "recognized-corner", minio_client)
 
-        # после сохранения всех cells архивировать папку resources/cells/image_id и сохранить в Minio в бакете clusterised-images
+            # избавляемся от перспективного искажения
+            corner_pts = np.array([[[leftTopCorner[0], leftTopCorner[1]]],
+                                   [[rightTopCorner[0], rightTopCorner[1]]],
+                                   [[rightDownCorner[0], rightDownCorner[1]]],
+                                   [[leftDownCorner[0], leftDownCorner[1]]]
+                                   ])
+            image = engine.remove_perspective_distortion(image, corner_pts, rows, columns)
 
+            # вырезаем ячейки
+            image = 255 - image
+            cells = util.split_into_cells(image,rows,columns)
+
+            # кластеризируем
+            labels, symbol_list = engine.cluster_cells(cells, symbols)
+
+            # сохраняем ячейки в папки
+            root_path = util.get_project_root()
+            image_directory = str(Path(root_path, "resources", "cell-images", image_id))
+            for idx, cell in  enumerate(cells):
+                label = labels[idx]
+                cell_directory = image_directory + "/" + str(label)
+                if not os.path.exists(cell_directory):
+                    os.makedirs(cell_directory)
+                cell_coordinates = util.get_cell_coordinates(idx, columns)
+                filename = str(cell_coordinates[0]) + '_' + str(cell_coordinates[1])
+                engine.save_file(cell, cell_directory, filename)
+
+            # создаем архив и сохраняем в Minio
+            archive_path = shutil.make_archive(base_name=image_directory, format= 'zip',
+                                                root_dir=str(Path(root_path, "resources", "cell-images")),
+                                                base_dir= image_id)
+            bucket_name = "archives", "/archive_" + str(task_id) + ".zip"
+            object_name = "/archive_" + str(task_id) + ".zip"
+            content_type =  "application/zip"
+            fput_object_to_minio(bucket_name, object_name, archive_path, minio_client, content_type)
+
+            # в Kafka отправляем сообщение о готовности архива
+
+            archive_url = "archives" + "/archive_" + str(task_id) + ".zip"
+            message_to_kafka = {
+                "id": task_id,
+                "status": "OK",
+                "archiveUrl": archive_url
+            }
+
+            send_message_to_kafka(message_to_kafka, producer, "stitch.vision.archive.before.check")
+            consumer.commit()
+
+            # удаляем папку и архив с изображениями ячеек
+            shutil.rmtree(image_directory)
+            Path(archive_path).unlink()
+        except Exception as e:
+            print(e)
+            continue
+
+
+def send_message_to_kafka(message, producer, topic_name):
+    producer.send(topic_name, message)
+    producer.flush()
 
 if __name__ == '__main__':
-   split_cells_and_archieve()
+   split_cells_and_archive()
