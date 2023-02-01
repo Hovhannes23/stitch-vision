@@ -14,6 +14,7 @@ from flask import Flask, request, jsonify
 from minio import Minio
 import image_controller
 import support_controller
+from kafka import KafkaProducer
 
 # import pythonProject3.controller.image_controller as image_controller
 # import pythonProject3.controller.support_controller as support_controller
@@ -64,4 +65,5 @@ def get_stitch_border():
 
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0')
+
 

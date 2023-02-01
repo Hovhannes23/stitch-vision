@@ -224,6 +224,7 @@ def save_images(cells, labels, dir_name):
 def save_file(file, directory, file_name, file_format='png'):
     if not os.path.exists(directory):
         os.makedirs(directory)
+    file = cv2.cvtColor(file, cv2.COLOR_RGB2BGR)
     cv2.imwrite(directory + '/' + file_name + '.' + file_format, file)
 
 # временный метод для добавления помеченных изображений к изображениям ячеек

@@ -117,7 +117,7 @@ def split_cells_and_archive():
     # )
 
     producer.send('recognition', value={
-	"id": "12345",
+	"id": "123456789",
 	"sizeWidth": 52,
 	"sizeHeight": 58,
 	"symbols": 6,
@@ -131,12 +131,28 @@ def split_cells_and_archive():
 		"leftDownCorner": [148, 1282]
 	}
      })
-    producer.flush()
+
+    producer.send('recognition', value={
+        "id": "12345",
+        "sizeWidth": 52,
+        "sizeHeight": 58,
+        "symbols": 6,
+        "backStitch": True,
+        "frenchKnot": True,
+        "image": {
+            "imageId": "123456789",
+            "leftTopCorner": [149, 131],
+            "rightTopCorner": [1193, 129],
+            "rightDownCorner": [1189, 1280],
+            "leftDownCorner": [148, 1282]
+        }
+    })
+    # producer.flush()
 
     consumer = KafkaConsumer(
         'recognition',
         bootstrap_servers=bootstrap_servers,
-        auto_offset_reset="latest",
+        auto_offset_reset="earliest",
         enable_auto_commit=False,
         group_id="stitch_vision_group_id",
         security_protocol="SSL",
@@ -177,7 +193,7 @@ def split_cells_and_archive():
             image = engine.remove_perspective_distortion(image, corner_pts, rows, columns)
 
             # вырезаем ячейки
-            image = 255 - image
+            # image = 255 - image
             cells = util.split_into_cells(image,rows,columns)
 
             # кластеризируем
@@ -199,14 +215,14 @@ def split_cells_and_archive():
             archive_path = shutil.make_archive(base_name=image_directory, format= 'zip',
                                                 root_dir=str(Path(root_path, "resources", "cell-images")),
                                                 base_dir= image_id)
-            bucket_name = "archives", "/archive_" + str(task_id) + ".zip"
-            object_name = "/archive_" + str(task_id) + ".zip"
+            bucket_name = "archives"
+            object_name = str(task_id) + ".zip"
             content_type =  "application/zip"
             fput_object_to_minio(bucket_name, object_name, archive_path, minio_client, content_type)
 
             # в Kafka отправляем сообщение о готовности архива
 
-            archive_url = "archives" + "/archive_" + str(task_id) + ".zip"
+            archive_url = "archives" + str(task_id) + ".zip"
             message_to_kafka = {
                 "id": task_id,
                 "status": "OK",
