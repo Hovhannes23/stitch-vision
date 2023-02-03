@@ -1,3 +1,4 @@
+import logging
 import shutil
 from pathlib import Path
 
@@ -105,6 +106,7 @@ def cutSmallPiece(img):
 
 
 def split_into_cells(img, rows_num, columns_num):
+    logging.INFO("start to split image into cells message")
     cells = []
     rows = np.vsplit(img, rows_num)
     for i, r in enumerate(rows, start=0):

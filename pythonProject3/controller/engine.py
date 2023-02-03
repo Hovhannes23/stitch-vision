@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 from collections import Counter
 
@@ -113,6 +114,7 @@ def remove_perspective_distortion(img, corner_pts, rows, columns):
     return img
 
 def cluster_cells(cells, cluster_count):
+    logging.INFO("start to clusterize cells")
     cluster_count = int(cluster_count)
 
     # временный код для добавления помеченных изображений
@@ -224,6 +226,7 @@ def save_images(cells, labels, dir_name):
 def save_file(file, directory, file_name, file_format='png'):
     if not os.path.exists(directory):
         os.makedirs(directory)
+    # изображение переводим в BGR, так как opencv при сохранении меняет местами каналы
     file = cv2.cvtColor(file, cv2.COLOR_RGB2BGR)
     cv2.imwrite(directory + '/' + file_name + '.' + file_format, file)
 

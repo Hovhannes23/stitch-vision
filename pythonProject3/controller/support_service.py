@@ -1,3 +1,4 @@
+import logging
 import shutil
 from io import BytesIO
 from pathlib import Path
@@ -88,6 +89,7 @@ def order_points(pts):
     return pts
 
 def split_cells_and_archive():
+    logging.INFO("split_cells_and_archive started")
     global image_id
     value_serializer = lambda m: json.dumps(m).encode("utf-8")
     bootstrap_servers = [os.getenv('KAFKA_ENDPOINT')]
@@ -96,7 +98,6 @@ def split_cells_and_archive():
         value_serializer=value_serializer,
         bootstrap_servers=bootstrap_servers,
         api_version_auto_timeout_ms= 20000,
-        # api_version=(0, 11, 5),
         security_protocol="SSL",
         ssl_check_hostname = True,
         ssl_cafile = "CARoot.pem",
@@ -105,48 +106,48 @@ def split_cells_and_archive():
         ssl_password="changeit"
     )
 
-    # admin_kafka_client = kafka.KafkaAdminClient(
-    #     bootstrap_servers=bootstrap_servers,
-    #     client_id='stitch-vision',
-    #     security_protocol="SSL",
-    #     ssl_check_hostname=True,
-    #     ssl_cafile="CAroot.pem",
-    #     # ssl_truststore_location = "pythonProject3/resources/kafka_config/kafka.truststore.pem",
-    #     ssl_keyfile="kafka.keystore.pem",
-    #     ssl_password="changeit"
-    # )
-
-    producer.send('recognition', value={
-	"id": "123456789",
-	"sizeWidth": 52,
-	"sizeHeight": 58,
-	"symbols": 6,
-	"backStitch": True,
-	"frenchKnot": True,
-	"image": {
-		"imageId": "123456789",
-		"leftTopCorner": [149, 131],
-		"rightTopCorner": [1193, 129],
-		"rightDownCorner": [1189, 1280],
-		"leftDownCorner": [148, 1282]
-	}
-     })
-
-    producer.send('recognition', value={
-        "id": "12345",
-        "sizeWidth": 52,
-        "sizeHeight": 58,
-        "symbols": 6,
-        "backStitch": True,
-        "frenchKnot": True,
-        "image": {
-            "imageId": "123456789",
-            "leftTopCorner": [149, 131],
-            "rightTopCorner": [1193, 129],
-            "rightDownCorner": [1189, 1280],
-            "leftDownCorner": [148, 1282]
-        }
-    })
+    admin_kafka_client = kafka.KafkaAdminClient(
+        bootstrap_servers=bootstrap_servers,
+        client_id='stitch-vision',
+        security_protocol="SSL",
+        ssl_check_hostname = True,
+        ssl_cafile = "CARoot.pem",
+        ssl_certfile = "certificate.pem",
+        ssl_keyfile="key.pem",
+        ssl_password="changeit"
+    )
+    #
+    # producer.send('recognition', value={
+	# "id": "123456789",
+	# "sizeWidth": 52,
+	# "sizeHeight": 58,
+	# "symbols": 6,
+	# "backStitch": True,
+	# "frenchKnot": True,
+	# "image": {
+	# 	"imageId": "123456789",
+	# 	"leftTopCorner": [149, 131],
+	# 	"rightTopCorner": [1193, 129],
+	# 	"rightDownCorner": [1189, 1280],
+	# 	"leftDownCorner": [148, 1282]
+	# }
+    #  })
+    #
+    # producer.send('recognition', value={
+    #     "id": "12345",
+    #     "sizeWidth": 52,
+    #     "sizeHeight": 58,
+    #     "symbols": 6,
+    #     "backStitch": True,
+    #     "frenchKnot": True,
+    #     "image": {
+    #         "imageId": "123456789",
+    #         "leftTopCorner": [149, 131],
+    #         "rightTopCorner": [1193, 129],
+    #         "rightDownCorner": [1189, 1280],
+    #         "leftDownCorner": [148, 1282]
+    #     }
+    # })
     # producer.flush()
 
     consumer = KafkaConsumer(
@@ -162,11 +163,15 @@ def split_cells_and_archive():
         ssl_keyfile="key.pem",
         ssl_password="changeit"
     )
+
+    topic_to_send = "stitch.vision.archive.before.check"
+    if topic_to_send not in admin_kafka_client.list_topics():
+        admin_kafka_client.create_topics([NewTopic(name=topic_to_send, num_partitions=1, replication_factor=1)])
     for message in consumer:
         try:
             # парсим message
             message = json.loads(message.value.decode('utf8'))
-
+            logging.INFO("start to consume message with tasd_id: " + message["id"])
             task_id = message["id"]
             image_data = message["image"]
             image_id = image_data["imageId"]
@@ -179,6 +184,7 @@ def split_cells_and_archive():
             symbols = message['symbols']
 
             # достаем изображение из Minio
+            logging.INFO("start to get image from Minio. Image_id: " + message)
             minio_client = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key=os.getenv('MINIO_ACCESS_KEY'),
                                 secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
 
@@ -200,6 +206,7 @@ def split_cells_and_archive():
             labels, symbol_list = engine.cluster_cells(cells, symbols)
 
             # сохраняем ячейки в папки
+            logging.INFO("saving")
             root_path = util.get_project_root()
             image_directory = str(Path(root_path, "resources", "cell-images", image_id))
             for idx, cell in  enumerate(cells):
@@ -229,7 +236,7 @@ def split_cells_and_archive():
                 "archiveUrl": archive_url
             }
 
-            send_message_to_kafka(message_to_kafka, producer, "stitch.vision.archive.before.check")
+            send_message_to_kafka(message_to_kafka, producer, topic_to_send)
             consumer.commit()
 
             # удаляем папку и архив с изображениями ячеек
