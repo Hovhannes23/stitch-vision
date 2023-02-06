@@ -234,7 +234,8 @@ def save_file(file, directory, file_name, file_format='png'):
 # for_blank = True, если добавляем к cells изображение пустой ячейки (blank.jpg)
 # for_blank = False, если добавляем изображения непустых ячеек
 def upload_images_to_cells(cells, for_blank):
-    folder = Path("./chashkaSymbols").name
+    root_path = util.get_project_root()
+    folder = Path(root_path, "controller", "chashkaSymbols").name
     images = []
     filenames = os.listdir(folder)
 

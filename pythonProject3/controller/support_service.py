@@ -96,15 +96,20 @@ def split_cells_and_archive():
     value_serializer = lambda m: json.dumps(m).encode("utf-8")
     bootstrap_servers = [os.getenv('KAFKA_ENDPOINT')]
     # bootstrap_servers = ["localhost:9092"]
+    root_path = util.get_project_root()
+    ssl_cafile = str(Path(root_path, "controller", "CARoot.pem"))
+    ssl_certfile = str(Path(root_path, "controller", "certificate.pem"))
+    ssl_keyfile = str(Path(root_path, "controller", "key.pem"))
+
     producer = KafkaProducer(
         value_serializer=value_serializer,
         bootstrap_servers=bootstrap_servers,
         api_version_auto_timeout_ms= 20000,
         security_protocol="SSL",
         ssl_check_hostname = True,
-        ssl_cafile = "CARoot.pem",
-        ssl_certfile = "certificate.pem",
-        ssl_keyfile="key.pem",
+        ssl_cafile = ssl_cafile,
+        ssl_certfile = ssl_certfile,
+        ssl_keyfile= ssl_keyfile,
         ssl_password="changeit"
     )
 
@@ -113,45 +118,30 @@ def split_cells_and_archive():
         client_id='stitch-vision',
         security_protocol="SSL",
         ssl_check_hostname = True,
-        ssl_cafile = "CARoot.pem",
-        ssl_certfile = "certificate.pem",
-        ssl_keyfile="key.pem",
+        ssl_cafile = ssl_cafile,
+        ssl_certfile = ssl_certfile,
+        ssl_keyfile= ssl_keyfile,
         ssl_password="changeit"
     )
 
-    # producer.send('recognition', value={
-	# "id": "123456789",
-	# "sizeWidth": 52,
-	# "sizeHeight": 58,
-	# "symbols": 6,
-	# "backStitch": True,
-	# "frenchKnot": True,
-	# "image": {
-	# 	"id": "123456789",
-    #     "corners": {
-    #         "leftTopCorner": [149, 131],
-    #         "rightTopCorner": [1193, 129],
-    #         "rightDownCorner": [1189, 1280],
-    #         "leftDownCorner": [148, 1282]
-    #     }
-	# }
-    #  })
-    #
-    # producer.send('recognition', value={
-    #     "id": "12345",
-    #     "sizeWidth": 52,
-    #     "sizeHeight": 58,
-    #     "symbols": 6,
-    #     "backStitch": True,
-    #     "frenchKnot": True,
-    #     "image": {
-    #         "imageId": "123456789",
-    #         "leftTopCorner": [149, 131],
-    #         "rightTopCorner": [1193, 129],
-    #         "rightDownCorner": [1189, 1280],
-    #         "leftDownCorner": [148, 1282]
-    #     }
-    # })
+    producer.send('recognition', value={
+	"id": "123456789",
+	"sizeWidth": 52,
+	"sizeHeight": 58,
+	"symbols": 6,
+	"backStitch": True,
+	"frenchKnot": True,
+	"image": {
+		"id": "123456789",
+        "corners": {
+            "leftTopCorner": [149, 131],
+            "rightTopCorner": [1193, 129],
+            "rightDownCorner": [1189, 1280],
+            "leftDownCorner": [148, 1282]
+        }
+	}
+     })
+
     producer.flush()
 
     consumer = KafkaConsumer(
@@ -162,9 +152,9 @@ def split_cells_and_archive():
         group_id="stitch_vision_group_id",
         security_protocol="SSL",
         ssl_check_hostname = True,
-        ssl_cafile = "CARoot.pem",
-        ssl_certfile = "certificate.pem",
-        ssl_keyfile="key.pem",
+        ssl_cafile = ssl_cafile,
+        ssl_certfile = ssl_certfile,
+        ssl_keyfile= ssl_keyfile,
         ssl_password="changeit"
     )
 
