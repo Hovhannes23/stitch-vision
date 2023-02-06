@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # from flasgger import Swagger, swag_from
+from threading import Thread
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -64,7 +65,11 @@ def get_stitch_border():
                         secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
     return support_controller.get_stitch_border(object_name, bucket_to_get, minioClient)
 
+@app.route('/recognition/startSplitAndArchive', methods=['GET'])
+def start_split_and_archive():
+    support_service.split_cells_and_archive()
+
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0')
-   support_service.split_cells_and_archive()
+
 

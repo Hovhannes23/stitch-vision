@@ -97,8 +97,8 @@ def detect_corner_points(img):
 def remove_perspective_distortion(img, corner_pts, rows, columns):
     # detect rectangle for perspective distortion
     rectangle_pts = util.get_rectangle_points(corner_pts)
-    w = rectangle_pts[3, 0]
-    h = rectangle_pts[3, 1]
+    w = rectangle_pts[2, 0]
+    h = rectangle_pts[2, 1]
 
     if rows or columns !=0:
         w = util.change_num(w, columns)
@@ -114,7 +114,7 @@ def remove_perspective_distortion(img, corner_pts, rows, columns):
     return img
 
 def cluster_cells(cells, cluster_count):
-    logging.INFO("start to clusterize cells")
+    # logging.INFO("start to clusterize cells")
     cluster_count = int(cluster_count)
 
     # временный код для добавления помеченных изображений
