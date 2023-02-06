@@ -124,39 +124,24 @@ def split_cells_and_archive():
         ssl_password="changeit"
     )
 
-    # producer.send('recognition', value={
-	# "id": "123456789",
-	# "sizeWidth": 52,
-	# "sizeHeight": 58,
-	# "symbols": 6,
-	# "backStitch": True,
-	# "frenchKnot": True,
-	# "image": {
-	# 	"id": "123456789",
-    #     "corners": {
-    #         "leftTopCorner": [149, 131],
-    #         "rightTopCorner": [1193, 129],
-    #         "rightDownCorner": [1189, 1280],
-    #         "leftDownCorner": [148, 1282]
-    #     }
-	# }
-    #  })
-    #
-    # producer.send('recognition', value={
-    #     "id": "12345",
-    #     "sizeWidth": 52,
-    #     "sizeHeight": 58,
-    #     "symbols": 6,
-    #     "backStitch": True,
-    #     "frenchKnot": True,
-    #     "image": {
-    #         "imageId": "123456789",
-    #         "leftTopCorner": [149, 131],
-    #         "rightTopCorner": [1193, 129],
-    #         "rightDownCorner": [1189, 1280],
-    #         "leftDownCorner": [148, 1282]
-    #     }
-    # })
+    producer.send('recognition', value={
+	"id": "123456789",
+	"sizeWidth": 52,
+	"sizeHeight": 58,
+	"symbols": 6,
+	"backStitch": True,
+	"frenchKnot": True,
+	"image": {
+		"id": "123456789",
+        "corners": {
+            "leftTopCorner": [149, 131],
+            "rightTopCorner": [1193, 129],
+            "rightDownCorner": [1189, 1280],
+            "leftDownCorner": [148, 1282]
+        }
+	}
+     })
+
     producer.flush()
 
     consumer = KafkaConsumer(
