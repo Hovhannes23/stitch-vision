@@ -32,22 +32,24 @@ def get_stitch_corner_pts(object_name, bucket_to_get, minio_client):
     # определяем границы листа А4
     corner_pts_A4 = engine.detect_corner_points(image)
     # избавляемся от перспективного искажения на А4
-    A4_no_distortion = engine.remove_perspective_distortion(image, corner_pts_A4, 0, 0)
+    A4_no_distortion_array = engine.remove_perspective_distortion(image, corner_pts_A4, 0, 0)
     # сохраняем изображение в Minio
     bucket_to_put = "recognized-corner"
-    A4_no_distortion = Image.fromarray(A4_no_distortion)
+    A4_no_distortion = Image.fromarray(A4_no_distortion_array)
     bytes = BytesIO()
     A4_no_distortion.save(bytes, 'png')
     object_name = put_object_to_minio(bytes, bucket_to_put, object_name, minio_client, 'image/png')
 
-    corner_pts_A4 = order_points(corner_pts_A4)
+    # находим границы эскиза
+    A4_no_distortion_array = 255 - A4_no_distortion_array
+    corner_pts_stitch = engine.detect_corner_points(A4_no_distortion_array)
     corner_pts = {
         "id": object_name,
         "corners": {
-            "leftTopCorner": corner_pts_A4[0].tolist(),
-            "rightTopCorner": corner_pts_A4[1].tolist(),
-            "rightDownCorner": corner_pts_A4[2].tolist(),
-            "leftDownCorner": corner_pts_A4[3].tolist()
+            "leftTopCorner": corner_pts_stitch[0].tolist(),
+            "rightTopCorner": corner_pts_stitch[1].tolist(),
+            "rightDownCorner": corner_pts_stitch[2].tolist(),
+            "leftDownCorner": corner_pts_stitch[3].tolist()
         }
     }
     return corner_pts
@@ -89,7 +91,7 @@ def order_points(pts):
     return pts
 
 def split_cells_and_archive():
-    logging.INFO("split_cells_and_archive started")
+    # logging.INFO("split_cells_and_archive started")
     global image_id
     value_serializer = lambda m: json.dumps(m).encode("utf-8")
     bootstrap_servers = [os.getenv('KAFKA_ENDPOINT')]
@@ -116,7 +118,7 @@ def split_cells_and_archive():
         ssl_keyfile="key.pem",
         ssl_password="changeit"
     )
-    #
+
     # producer.send('recognition', value={
 	# "id": "123456789",
 	# "sizeWidth": 52,
@@ -125,11 +127,13 @@ def split_cells_and_archive():
 	# "backStitch": True,
 	# "frenchKnot": True,
 	# "image": {
-	# 	"imageId": "123456789",
-	# 	"leftTopCorner": [149, 131],
-	# 	"rightTopCorner": [1193, 129],
-	# 	"rightDownCorner": [1189, 1280],
-	# 	"leftDownCorner": [148, 1282]
+	# 	"id": "123456789",
+    #     "corners": {
+    #         "leftTopCorner": [149, 131],
+    #         "rightTopCorner": [1193, 129],
+    #         "rightDownCorner": [1189, 1280],
+    #         "leftDownCorner": [148, 1282]
+    #     }
 	# }
     #  })
     #
@@ -148,7 +152,7 @@ def split_cells_and_archive():
     #         "leftDownCorner": [148, 1282]
     #     }
     # })
-    # producer.flush()
+    producer.flush()
 
     consumer = KafkaConsumer(
         'recognition',
@@ -171,20 +175,21 @@ def split_cells_and_archive():
         try:
             # парсим message
             message = json.loads(message.value.decode('utf8'))
-            logging.INFO("start to consume message with tasd_id: " + message["id"])
+            # logging.INFO("start to consume message with task_id: " + message["id"])
             task_id = message["id"]
             image_data = message["image"]
-            image_id = image_data["imageId"]
-            leftTopCorner = image_data["leftTopCorner"]
-            rightTopCorner = image_data["rightTopCorner"]
-            rightDownCorner = image_data["rightDownCorner"]
-            leftDownCorner = image_data["leftDownCorner"]
+            image_id = image_data["id"]
+            corners = image_data["corners"]
+            leftTopCorner = corners["leftTopCorner"]
+            rightTopCorner = corners["rightTopCorner"]
+            rightDownCorner = corners["rightDownCorner"]
+            leftDownCorner = corners["leftDownCorner"]
             rows = message["sizeHeight"]
             columns = message["sizeWidth"]
             symbols = message['symbols']
 
             # достаем изображение из Minio
-            logging.INFO("start to get image from Minio. Image_id: " + message)
+            # logging.INFO("start to get image from Minio. Image_id: " + message)
             minio_client = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key=os.getenv('MINIO_ACCESS_KEY'),
                                 secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
 
@@ -196,6 +201,7 @@ def split_cells_and_archive():
                                    [[rightDownCorner[0], rightDownCorner[1]]],
                                    [[leftDownCorner[0], leftDownCorner[1]]]
                                    ])
+            # image = 255 - image
             image = engine.remove_perspective_distortion(image, corner_pts, rows, columns)
 
             # вырезаем ячейки
@@ -206,7 +212,7 @@ def split_cells_and_archive():
             labels, symbol_list = engine.cluster_cells(cells, symbols)
 
             # сохраняем ячейки в папки
-            logging.INFO("saving")
+            # logging.INFO("saving")
             root_path = util.get_project_root()
             image_directory = str(Path(root_path, "resources", "cell-images", image_id))
             for idx, cell in  enumerate(cells):
@@ -228,12 +234,9 @@ def split_cells_and_archive():
             fput_object_to_minio(bucket_name, object_name, archive_path, minio_client, content_type)
 
             # в Kafka отправляем сообщение о готовности архива
-
-            archive_url = "archives" + str(task_id) + ".zip"
             message_to_kafka = {
-                "id": task_id,
-                "status": "OK",
-                "archiveUrl": archive_url
+                "taskId": task_id,
+                "success": True
             }
 
             send_message_to_kafka(message_to_kafka, producer, topic_to_send)
