@@ -65,3 +65,5 @@ def upload_image(image, clusters_num, rows_num, columns_num):
 
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0')
+
+

@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 from collections import Counter
 
@@ -7,6 +8,7 @@ import numpy as np
 from clustimage import Clustimage
 from matplotlib import pyplot as plt
 from sklearn.cluster import MiniBatchKMeans
+from pathlib import Path
 import preprocess
 import util
 
@@ -55,16 +57,6 @@ def response_adapter(old_response, rows_num, columns_num):
     new_response["symbols"] = symbols
     return new_response
 
-def encode_base64(input):
-    input_base64 = base64.b64encode(input)
-    input_base64 = input_base64.decode('ascii')
-    # string_repr = base64.binascii.b2a_base64(image).decode("ascii")
-    # encoded_img = np.frombuffer(base64.binascii.a2b_base64(string_repr.encode("ascii")))
-    # image.save(byte_arr, format='PNG')  # convert the image to byte array
-    # encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii')
-    return input_base64
-
-
 def detect_split_into_cells(img, rows_num, columns_num):
     corner_pts = detect_corner_points(img)
     img = remove_perspective_distortion(img, corner_pts, rows_num, columns_num)
@@ -105,8 +97,8 @@ def detect_corner_points(img):
 def remove_perspective_distortion(img, corner_pts, rows, columns):
     # detect rectangle for perspective distortion
     rectangle_pts = util.get_rectangle_points(corner_pts)
-    w = rectangle_pts[3, 0]
-    h = rectangle_pts[3, 1]
+    w = rectangle_pts[2, 0]
+    h = rectangle_pts[2, 1]
 
     if rows or columns !=0:
         w = util.change_num(w, columns)
@@ -114,7 +106,7 @@ def remove_perspective_distortion(img, corner_pts, rows, columns):
     w = int(w)
     h = int(h)
     pts1 = np.float32(corner_pts)
-    pts2 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+    pts2 = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)
     img = cv2.warpPerspective(img, matrix, (w, h))
     # utils.showImage(img)
@@ -122,6 +114,7 @@ def remove_perspective_distortion(img, corner_pts, rows, columns):
     return img
 
 def cluster_cells(cells, cluster_count):
+    # logging.INFO("start to clusterize cells")
     cluster_count = int(cluster_count)
 
     # временный код для добавления помеченных изображений
@@ -230,11 +223,18 @@ def save_images(cells, labels, dir_name):
             os.makedirs(folder_name)
         cv2.imwrite(folder_name + '/' + str(idx) + '.png', cells[idx])
 
+def save_file(file, directory, file_name, file_format='png'):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    # изображение переводим в BGR, так как opencv при сохранении меняет местами каналы
+    file = cv2.cvtColor(file, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(directory + '/' + file_name + '.' + file_format, file)
+
 # временный метод для добавления помеченных изображений к изображениям ячеек
 # for_blank = True, если добавляем к cells изображение пустой ячейки (blank.jpg)
 # for_blank = False, если добавляем изображения непустых ячеек
 def upload_images_to_cells(cells, for_blank):
-    folder = "./chashkaSymbols"
+    folder = Path("./chashkaSymbols").name
     images = []
     filenames = os.listdir(folder)
 

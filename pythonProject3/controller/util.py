@@ -1,3 +1,7 @@
+import logging
+import shutil
+from pathlib import Path
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,11 +48,11 @@ def reorder(points):
     pointsN = np.zeros((4, 1, 2), dtype=np.int32)
     add = points.sum(1)
     pointsN[0] = points[np.argmin(add)]
-    pointsN[3] = points[np.argmax(add)]
+    pointsN[2] = points[np.argmax(add)]
     # pointsN[3] = np.array([2714, 3379])
     diff = np.diff(points, axis=1)
     pointsN[1] = points[np.argmin(diff)]
-    pointsN[2] = points[np.argmax(diff)]
+    pointsN[3] = points[np.argmax(diff)]
     # pointsN[2] = points[1]
     return pointsN
 
@@ -75,7 +79,7 @@ def get_rectangle_points(points):
     Y_min = 0
     new_points = np.float32([
         [X_min, Y_min], [X_max, Y_min],
-        [X_min, Y_max], [X_max, Y_max]
+        [X_max, Y_max], [X_min, Y_max]
     ])
 
     return new_points
@@ -102,6 +106,7 @@ def cutSmallPiece(img):
 
 
 def split_into_cells(img, rows_num, columns_num):
+    # logging.INFO("start to split image into cells message")
     cells = []
     rows = np.vsplit(img, rows_num)
     for i, r in enumerate(rows, start=0):
@@ -112,3 +117,12 @@ def split_into_cells(img, rows_num, columns_num):
     cells = np.array(cells)
     # cells = np.reshape(cells, (rows_num, columns_num, cells.shape[1], cells.shape[2], cells.shape[3]))
     return cells
+
+# определяем координаты ячейки в таблице в  зависимости от его индекса(idx) в списке и кол-ва cтолбцов(columns_count) в таблице
+def get_cell_coordinates(idx, columns_count):
+    row = idx//columns_count +1
+    column = idx + 1 - idx//columns_count*columns_count
+    return row, column
+
+def get_project_root() -> Path:
+    return Path(__file__).parent.parent

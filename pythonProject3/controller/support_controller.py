@@ -5,6 +5,7 @@ import PIL
 from PIL import Image
 from flask import Flask, request, jsonify
 import support_service
+import engine
 
 app = Flask(__name__)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'heif'}
@@ -12,11 +13,6 @@ load_dotenv()
 
 # @app.route('/recognition/border', methods=['GET'])
 def get_stitch_border(object_name, bucket_to_get, minioClient):
-
-    # object_name = request.json['imageId']
-    # bucket_to_get = 'task-images'
-    # minioClient = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key= os.getenv('MINIO_ACCESS_KEY'),
-    #                     secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
 
     corner_pts = support_service.get_stitch_corner_pts(object_name, bucket_to_get, minioClient)
 

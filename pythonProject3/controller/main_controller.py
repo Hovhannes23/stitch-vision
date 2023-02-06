@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # from flasgger import Swagger, swag_from
+from threading import Thread
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -14,6 +15,8 @@ from flask import Flask, request, jsonify
 from minio import Minio
 import image_controller
 import support_controller
+from kafka import KafkaProducer
+import support_service
 
 # import pythonProject3.controller.image_controller as image_controller
 # import pythonProject3.controller.support_controller as support_controller
@@ -54,7 +57,7 @@ def upload_image():
     return image_controller.upload_image(image, clusters_num, rows_num, columns_num)
 
 
-@app.route('/recognition/border', methods=['GET'])
+@app.route('/recognition/border', methods=['POST'])
 def get_stitch_border():
     object_name = request.json['imageId']
     bucket_to_get = 'task-images'
@@ -62,5 +65,11 @@ def get_stitch_border():
                         secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
     return support_controller.get_stitch_border(object_name, bucket_to_get, minioClient)
 
+@app.route('/recognition/startSplitAndArchive', methods=['GET'])
+def start_split_and_archive():
+    support_service.split_cells_and_archive()
+
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0')
+
+
