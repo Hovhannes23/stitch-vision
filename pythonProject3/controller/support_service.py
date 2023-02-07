@@ -91,7 +91,7 @@ def order_points(pts):
     return pts
 
 def split_cells_and_archive():
-    # logging.INFO("split_cells_and_archive started")
+    # logging.info("split_cells_and_archive started")
     global image_id
     value_serializer = lambda m: json.dumps(m).encode("utf-8")
     bootstrap_servers = [os.getenv('KAFKA_ENDPOINT')]
@@ -165,7 +165,7 @@ def split_cells_and_archive():
         try:
             # парсим message
             message = json.loads(message.value.decode('utf8'))
-            # logging.INFO("start to consume message with task_id: " + message["id"])
+            # logging.info("start to consume message with task_id: " + message["id"])
             task_id = message["id"]
             image_data = message["image"]
             image_id = image_data["id"]
@@ -179,7 +179,7 @@ def split_cells_and_archive():
             symbols = message['symbols']
 
             # достаем изображение из Minio
-            # logging.INFO("start to get image from Minio. Image_id: " + message)
+            # logging.info("start to get image from Minio. Image_id: " + message)
             minio_client = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key=os.getenv('MINIO_ACCESS_KEY'),
                                 secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
 
@@ -202,7 +202,7 @@ def split_cells_and_archive():
             labels, symbol_list = engine.cluster_cells(cells, symbols)
 
             # сохраняем ячейки в папки
-            # logging.INFO("saving")
+            # logging.info("saving")
             root_path = util.get_project_root()
             image_directory = str(Path(root_path, "resources", "cell-images", image_id))
             for idx, cell in  enumerate(cells):
