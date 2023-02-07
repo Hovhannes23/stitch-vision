@@ -43,6 +43,7 @@ def get_stitch_corner_pts(object_name, bucket_to_get, minio_client):
     # находим границы эскиза
     A4_no_distortion_array = 255 - A4_no_distortion_array
     corner_pts_stitch = engine.detect_corner_points(A4_no_distortion_array)
+    corner_pts_stitch = corner_pts_stitch.squeeze()
     corner_pts = {
         "id": object_name,
         "corners": {
