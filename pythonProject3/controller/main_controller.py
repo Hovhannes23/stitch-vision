@@ -69,6 +69,14 @@ def get_stitch_border():
 def start_split_and_archive():
     support_service.split_cells_and_archive()
 
+@app.route('/recognition/archive', methods=['POST'])
+def archive_to_json_response():
+    id = request.json["taskId"]
+    folder_unicode_map = request.json["folderUnicodeMap"]
+    rows = request.json["sizeHeight"]
+    columns = request.json["sizeWidth"]
+    return support_service.archive_to_json_response(id, folder_unicode_map, rows, columns)
+
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0')
 
