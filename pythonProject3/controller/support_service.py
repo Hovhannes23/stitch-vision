@@ -1,4 +1,3 @@
-import logging
 import re
 import shutil
 import zipfile
@@ -9,13 +8,11 @@ import cv2
 import kafka
 import numpy as np
 from PIL import Image
-from flask import jsonify
-from kafka import KafkaConsumer, KafkaClient
+from kafka import KafkaConsumer
 from kafka.admin import NewTopic
 from minio import Minio
 from minio.error import InvalidResponseError
 from pillow_heif import register_heif_opener
-from time import sleep
 from dotenv import load_dotenv
 from kafka import KafkaProducer
 import json
@@ -289,7 +286,7 @@ def archive_to_json_response(id, folder_unicode_map, rows, columns):
         symbols.append(symbol_data)
 
     response["symbols"] = symbols
-    return response;
+    return response
 
 if __name__ == '__main__':
    split_cells_and_archive()
