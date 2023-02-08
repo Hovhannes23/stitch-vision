@@ -245,9 +245,9 @@ def send_message_to_kafka(message, producer, topic_name):
     producer.send(topic_name, message)
     producer.flush()
 
-def archive_to_json_response(id, folder_unicode_map, rows, columns):
+def archive_to_json_response(task_id, folder_unicode_map, rows, columns):
     # архив достаем из Minio, разархивируем и сохраняем
-    response = minio_client.get_object("correct-archives", id + ".zip")
+    response = minio_client.get_object("correct-archives", task_id + ".zip")
     archive = BytesIO(response.data)
     archive = zipfile.ZipFile(archive)
     path_to_unpack = Path(root_path, "resources", "correct-archive-unpacked")
@@ -261,10 +261,10 @@ def archive_to_json_response(id, folder_unicode_map, rows, columns):
     symbols = []
 
     # итерируемся по папкам архива и парсим данные для response
-    for dir_name in os.listdir(Path(path_to_unpack, id)):
+    for dir_name in os.listdir(Path(path_to_unpack, task_id)):
         # достаем первое изображение, чтобы  определить цвет фона символа
-        image_name = os.listdir(Path(path_to_unpack, id, dir_name))[0]
-        image = cv2.imread(str(Path(path_to_unpack, id, dir_name, image_name)))
+        image_name = os.listdir(Path(path_to_unpack, task_id, dir_name))[0]
+        image = cv2.imread(str(Path(path_to_unpack, task_id, dir_name, image_name)))
         # image = Image.open(Path(path_to_unpack, id, dir_name, image_name))
         color = engine.detach_background(image)[1]
         symbol_data = {
@@ -274,7 +274,7 @@ def archive_to_json_response(id, folder_unicode_map, rows, columns):
         }
         coordinates = []
 
-        for image_name in os.listdir(Path(path_to_unpack, id, dir_name)):
+        for image_name in os.listdir(Path(path_to_unpack, task_id, dir_name)):
             row_column = re.split(r'[_,.]', image_name)
             # row_column = image_name.split(("_", "."))
             coordinates.append({
