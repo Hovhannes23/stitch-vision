@@ -65,9 +65,20 @@ def get_stitch_border():
                         secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
     return support_controller.get_stitch_border(object_name, bucket_to_get, minioClient)
 
+
 @app.route('/recognition/startSplitAndArchive', methods=['GET'])
 def start_split_and_archive():
     support_service.split_cells_and_archive()
+
+
+@app.route('/recognition/archive', methods=['POST'])
+def archive_to_json_response():
+    task_id = request.json["taskId"]
+    folder_unicode_map = request.json["folderUnicodeMap"]
+    rows = request.json["sizeHeight"]
+    columns = request.json["sizeWidth"]
+    return support_service.archive_to_json_response(task_id, folder_unicode_map, rows, columns)
+
 
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0')

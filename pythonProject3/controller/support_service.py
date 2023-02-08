@@ -1,18 +1,18 @@
-import logging
+import re
 import shutil
+import zipfile
 from io import BytesIO
 from pathlib import Path
 
+import cv2
 import kafka
 import numpy as np
 from PIL import Image
-from flask import jsonify
-from kafka import KafkaConsumer, KafkaClient
+from kafka import KafkaConsumer
 from kafka.admin import NewTopic
 from minio import Minio
 from minio.error import InvalidResponseError
 from pillow_heif import register_heif_opener
-from time import sleep
 from dotenv import load_dotenv
 from kafka import KafkaProducer
 import json
@@ -24,6 +24,9 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'heif'}
 # для работы с heif форматом
 register_heif_opener()
 load_dotenv()
+minio_client = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key=os.getenv('MINIO_ACCESS_KEY'),
+                                secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
+root_path = util.get_project_root()
 
 def get_stitch_corner_pts(object_name, bucket_to_get, minio_client):
 
@@ -181,9 +184,6 @@ def split_cells_and_archive():
 
             # достаем изображение из Minio
             # logging.info("start to get image from Minio. Image_id: " + message)
-            minio_client = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key=os.getenv('MINIO_ACCESS_KEY'),
-                                secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
-
             image = get_object_from_minio(image_id, "recognized-corner", minio_client)
 
             # избавляемся от перспективного искажения
@@ -204,7 +204,7 @@ def split_cells_and_archive():
 
             # сохраняем ячейки в папки
             # logging.info("saving")
-            root_path = util.get_project_root()
+
             image_directory = str(Path(root_path, "resources", "cell-images", image_id))
             for idx, cell in  enumerate(cells):
                 label = labels[idx]
@@ -244,6 +244,49 @@ def split_cells_and_archive():
 def send_message_to_kafka(message, producer, topic_name):
     producer.send(topic_name, message)
     producer.flush()
+
+def archive_to_json_response(task_id, folder_unicode_map, rows, columns):
+    # архив достаем из Minio, разархивируем и сохраняем
+    response = minio_client.get_object("correct-archives", task_id + ".zip")
+    archive = BytesIO(response.data)
+    archive = zipfile.ZipFile(archive)
+    path_to_unpack = Path(root_path, "resources", "correct-archive-unpacked")
+    archive.extractall(path_to_unpack)
+
+    # парсим json response
+    response = {
+        "rows": rows,
+        "columns": columns
+    }
+    symbols = []
+
+    # итерируемся по папкам архива и парсим данные для response
+    for dir_name in os.listdir(Path(path_to_unpack, task_id)):
+        # достаем первое изображение, чтобы  определить цвет фона символа
+        image_name = os.listdir(Path(path_to_unpack, task_id, dir_name))[0]
+        image = cv2.imread(str(Path(path_to_unpack, task_id, dir_name, image_name)))
+        # image = Image.open(Path(path_to_unpack, id, dir_name, image_name))
+        color = engine.detach_background(image)[1]
+        symbol_data = {
+            "index": int(dir_name),
+            "symbol": folder_unicode_map[dir_name],
+            "color": color
+        }
+        coordinates = []
+
+        for image_name in os.listdir(Path(path_to_unpack, task_id, dir_name)):
+            row_column = re.split(r'[_,.]', image_name)
+            # row_column = image_name.split(("_", "."))
+            coordinates.append({
+                "row": int(row_column[0]) - 1,
+                "column": int(row_column[1]) - 1
+            })
+
+        symbol_data["coordinates"] = coordinates
+        symbols.append(symbol_data)
+
+    response["symbols"] = symbols
+    return response
 
 if __name__ == '__main__':
    split_cells_and_archive()
