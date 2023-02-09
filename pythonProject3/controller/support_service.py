@@ -99,7 +99,6 @@ def split_cells_and_archive():
     global image_id
     value_serializer = lambda m: json.dumps(m).encode("utf-8")
     bootstrap_servers = [os.getenv('KAFKA_ENDPOINT')]
-    # bootstrap_servers = ["localhost:9092"]
     root_path = util.get_project_root()
     ssl_cafile = str(Path(root_path, "controller", "CARoot.pem"))
     ssl_certfile = str(Path(root_path, "controller", "certificate.pem"))
@@ -128,25 +127,24 @@ def split_cells_and_archive():
         ssl_password="changeit"
     )
 
-    producer.send('recognition', value={
-	"id": "123456789",
-	"sizeWidth": 52,
-	"sizeHeight": 58,
-	"symbols": 6,
-	"backStitch": True,
-	"frenchKnot": True,
-	"image": {
-		"id": "123456789",
-        "corners": {
-            "leftTopCorner": [149, 131],
-            "rightTopCorner": [1193, 129],
-            "rightDownCorner": [1189, 1280],
-            "leftDownCorner": [148, 1282]
-        }
-	}
-     })
-
-    producer.flush()
+    # producer.send('recognition', value={
+	# "id": "123456789",
+	# "sizeWidth": 52,
+	# "sizeHeight": 58,
+	# "symbols": 6,
+	# "backStitch": True,
+	# "frenchKnot": True,
+	# "image": {
+	# 	"id": "123456789",
+    #     "corners": {
+    #         "leftTopCorner": [149, 131],
+    #         "rightTopCorner": [1193, 129],
+    #         "rightDownCorner": [1189, 1280],
+    #         "leftDownCorner": [148, 1282]
+    #     }
+	# }
+    #  })
+    # producer.flush()
 
     consumer = KafkaConsumer(
         'recognition',
@@ -276,7 +274,6 @@ def archive_to_json_response(task_id, folder_unicode_map, rows, columns):
 
         for image_name in os.listdir(Path(path_to_unpack, task_id, dir_name)):
             row_column = re.split(r'[_,.]', image_name)
-            # row_column = image_name.split(("_", "."))
             coordinates.append({
                 "row": int(row_column[0]) - 1,
                 "column": int(row_column[1]) - 1
@@ -286,6 +283,9 @@ def archive_to_json_response(task_id, folder_unicode_map, rows, columns):
         symbols.append(symbol_data)
 
     response["symbols"] = symbols
+    # удаляем разархивированную папку
+    shutil.rmtree(Path(path_to_unpack, task_id))
+    # Path(archive_path).unlink()
     return response
 
 if __name__ == '__main__':
