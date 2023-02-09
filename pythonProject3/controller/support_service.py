@@ -26,7 +26,51 @@ register_heif_opener()
 load_dotenv()
 minio_client = Minio(endpoint=os.getenv('MINIO_ENDPOINT'), access_key=os.getenv('MINIO_ACCESS_KEY'),
                                 secret_key=os.getenv('MINIO_SECRET_KEY'), secure=False)
+
+value_serializer = lambda m: json.dumps(m).encode("utf-8")
+bootstrap_servers = [os.getenv('KAFKA_ENDPOINT')]
 root_path = util.get_project_root()
+ssl_cafile = str(Path(root_path, "controller", "CARoot.pem"))
+ssl_certfile = str(Path(root_path, "controller", "certificate.pem"))
+ssl_keyfile = str(Path(root_path, "controller", "key.pem"))
+root_path = util.get_project_root()
+
+producer = KafkaProducer(
+    value_serializer=value_serializer,
+    bootstrap_servers=bootstrap_servers,
+    api_version_auto_timeout_ms=20000,
+    security_protocol="SSL",
+    ssl_check_hostname=True,
+    ssl_cafile=ssl_cafile,
+    ssl_certfile=ssl_certfile,
+    ssl_keyfile=ssl_keyfile,
+    ssl_password="changeit"
+)
+
+admin_kafka_client = kafka.KafkaAdminClient(
+    bootstrap_servers=bootstrap_servers,
+    client_id='stitch-vision',
+    security_protocol="SSL",
+    ssl_check_hostname=True,
+    ssl_cafile=ssl_cafile,
+    ssl_certfile=ssl_certfile,
+    ssl_keyfile=ssl_keyfile,
+    ssl_password="changeit"
+)
+
+consumer = KafkaConsumer(
+    'recognition',
+    bootstrap_servers=bootstrap_servers,
+    auto_offset_reset="earliest",
+    enable_auto_commit=False,
+    group_id="stitch_vision_group_id",
+    security_protocol="SSL",
+    ssl_check_hostname=True,
+    ssl_cafile=ssl_cafile,
+    ssl_certfile=ssl_certfile,
+    ssl_keyfile=ssl_keyfile,
+    ssl_password="changeit"
+)
 
 def get_stitch_corner_pts(object_name, bucket_to_get, minio_client):
 
@@ -97,36 +141,6 @@ def order_points(pts):
 def split_cells_and_archive():
     # logging.info("split_cells_and_archive started")
     global image_id
-    value_serializer = lambda m: json.dumps(m).encode("utf-8")
-    bootstrap_servers = [os.getenv('KAFKA_ENDPOINT')]
-    root_path = util.get_project_root()
-    ssl_cafile = str(Path(root_path, "controller", "CARoot.pem"))
-    ssl_certfile = str(Path(root_path, "controller", "certificate.pem"))
-    ssl_keyfile = str(Path(root_path, "controller", "key.pem"))
-
-    producer = KafkaProducer(
-        value_serializer=value_serializer,
-        bootstrap_servers=bootstrap_servers,
-        api_version_auto_timeout_ms= 20000,
-        security_protocol="SSL",
-        ssl_check_hostname = True,
-        ssl_cafile = ssl_cafile,
-        ssl_certfile = ssl_certfile,
-        ssl_keyfile= ssl_keyfile,
-        ssl_password="changeit"
-    )
-
-    admin_kafka_client = kafka.KafkaAdminClient(
-        bootstrap_servers=bootstrap_servers,
-        client_id='stitch-vision',
-        security_protocol="SSL",
-        ssl_check_hostname = True,
-        ssl_cafile = ssl_cafile,
-        ssl_certfile = ssl_certfile,
-        ssl_keyfile= ssl_keyfile,
-        ssl_password="changeit"
-    )
-
     # producer.send('recognition', value={
 	# "id": "123456789",
 	# "sizeWidth": 52,
@@ -145,20 +159,6 @@ def split_cells_and_archive():
 	# }
     #  })
     # producer.flush()
-
-    consumer = KafkaConsumer(
-        'recognition',
-        bootstrap_servers=bootstrap_servers,
-        auto_offset_reset="earliest",
-        enable_auto_commit=False,
-        group_id="stitch_vision_group_id",
-        security_protocol="SSL",
-        ssl_check_hostname = True,
-        ssl_cafile = ssl_cafile,
-        ssl_certfile = ssl_certfile,
-        ssl_keyfile= ssl_keyfile,
-        ssl_password="changeit"
-    )
 
     topic_to_send = "stitch.vision.archive.before.check"
     if topic_to_send not in admin_kafka_client.list_topics():
@@ -203,7 +203,7 @@ def split_cells_and_archive():
             # сохраняем ячейки в папки
             # logging.info("saving")
 
-            image_directory = str(Path(root_path, "resources", "cell-images", image_id))
+            image_directory = str(Path(root_path, "resources", "cell-images", task_id))
             for idx, cell in  enumerate(cells):
                 label = labels[idx]
                 cell_directory = image_directory + "/" + str(label)
@@ -214,9 +214,9 @@ def split_cells_and_archive():
                 engine.save_file(cell, cell_directory, filename)
 
             # создаем архив и сохраняем в Minio
-            archive_path = shutil.make_archive(base_name=image_directory, format= 'zip',
+            archive_path = shutil.make_archive(base_name=task_id, format= 'zip',
                                                 root_dir=str(Path(root_path, "resources", "cell-images")),
-                                                base_dir= image_id)
+                                                base_dir= task_id)
             bucket_name = "archives"
             object_name = str(task_id) + ".zip"
             content_type =  "application/zip"
@@ -234,7 +234,7 @@ def split_cells_and_archive():
             # удаляем папку и архив с изображениями ячеек
             shutil.rmtree(image_directory)
             Path(archive_path).unlink()
-        except Exception as e:
+         except Exception as e:
             print(e)
             continue
 
