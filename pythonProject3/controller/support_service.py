@@ -234,7 +234,7 @@ def split_cells_and_archive():
             # удаляем папку и архив с изображениями ячеек
             shutil.rmtree(image_directory)
             Path(archive_path).unlink()
-         except Exception as e:
+        except Exception as e:
             print(e)
             continue
 
@@ -285,7 +285,6 @@ def archive_to_json_response(task_id, folder_unicode_map, rows, columns):
     response["symbols"] = symbols
     # удаляем разархивированную папку
     shutil.rmtree(Path(path_to_unpack, task_id))
-    # Path(archive_path).unlink()
     return response
 
 if __name__ == '__main__':
