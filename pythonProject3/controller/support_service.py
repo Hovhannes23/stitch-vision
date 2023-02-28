@@ -267,7 +267,7 @@ def archive_to_json_response(task_id, folder_unicode_map, rows, columns):
         color = engine.detach_background(image)[1]
         symbol_data = {
             "index": int(dir_name),
-            "symbol": folder_unicode_map[dir_name],
+            "unicode": folder_unicode_map[dir_name],
             "color": color
         }
         coordinates = []
